@@ -10,6 +10,7 @@ export const adminColors = {
   line: '#E8E4DE',
   green: '#2D5140',
   rust: '#B95C38',
+  rustLight: '#FBF0EA',
 };
 
 export function AdminScreen({ children }: { children: ReactNode }) {
@@ -19,18 +20,40 @@ export function AdminScreen({ children }: { children: ReactNode }) {
 export function AdminHeader({
   title,
   onSave,
+  onDelete,
+  onSignOut,
+  saveDisabled = false,
 }: {
   title: string;
   onSave?: () => void;
+  onDelete?: () => void;
+  onSignOut?: () => void;
+  saveDisabled?: boolean;
 }) {
   return (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{title}</Text>
-      {onSave ? (
-        <Pressable accessibilityRole="button" onPress={onSave} style={styles.headerAction}>
-          <Text style={styles.headerActionText}>Save</Text>
-        </Pressable>
-      ) : null}
+      <View style={styles.headerActions}>
+        {onDelete ? (
+          <Pressable accessibilityRole="button" onPress={onDelete} style={styles.deleteAction}>
+            <Text style={styles.deleteActionText}>Delete</Text>
+          </Pressable>
+        ) : null}
+        {onSave ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={saveDisabled}
+            onPress={onSave}
+            style={[styles.headerAction, saveDisabled && styles.disabledAction]}>
+            <Text style={styles.headerActionText}>{saveDisabled ? 'Saving…' : 'Save'}</Text>
+          </Pressable>
+        ) : null}
+        {onSignOut ? (
+          <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.headerAction}>
+            <Text style={styles.headerActionText}>Log out</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -40,20 +63,24 @@ export function AdminButton({
   onPress,
   style,
   variant = 'primary',
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   style?: ViewStyle;
   variant?: 'primary' | 'outline';
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         variant === 'outline' && styles.outlineButton,
         style,
+        disabled && styles.disabledAction,
         pressed && styles.pressed,
       ]}>
       <Text style={[styles.buttonText, variant === 'outline' && styles.outlineButtonText]}>
@@ -65,10 +92,11 @@ export function AdminButton({
 
 export function AdminField({
   label,
+  fieldStyle,
   ...inputProps
-}: Omit<TextInputProps, 'style'> & { label: string }) {
+}: Omit<TextInputProps, 'style'> & { label: string; fieldStyle?: ViewStyle }) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, fieldStyle]}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         {...inputProps}
@@ -99,11 +127,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerAction: {
     backgroundColor: adminColors.rust,
     borderRadius: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
+  },
+  deleteAction: {
+    backgroundColor: adminColors.rustLight,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  deleteActionText: {
+    color: adminColors.rust,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  disabledAction: {
+    opacity: 0.6,
   },
   headerActionText: {
     color: '#FFFFFF',

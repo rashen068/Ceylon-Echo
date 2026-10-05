@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useAdminAuth } from '@/features/admin/admin-auth';
 import { useAdmin } from '@/features/admin/admin-context';
 import { AdminHeader, AdminScreen, adminColors } from '@/features/admin/admin-ui';
 
 export default function AttractionsListScreen() {
-  const { attractions } = useAdmin();
+  const { attractions, isLoading, error } = useAdmin();
+  const { signOutAdmin } = useAdminAuth();
   const [search, setSearch] = useState('');
   const [searchByLocation, setSearchByLocation] = useState(false);
   const filteredAttractions = useMemo(
@@ -19,9 +21,21 @@ export default function AttractionsListScreen() {
     [attractions, search, searchByLocation],
   );
 
+  async function handleSignOut() {
+    try {
+      await signOutAdmin();
+      router.replace('/admin');
+    } catch (signOutError) {
+      Alert.alert(
+        'Could not sign out',
+        signOutError instanceof Error ? signOutError.message : 'Please try again.',
+      );
+    }
+  }
+
   return (
     <AdminScreen>
-      <AdminHeader title="Curate Attractions" />
+      <AdminHeader title="Curate Attractions" onSignOut={() => void handleSignOut()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.searchRow}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -42,7 +56,14 @@ export default function AttractionsListScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Curate Attractions</Text>
-        {filteredAttractions.map((item, index) => (
+        {isLoading ? <Text style={styles.message}>Loading attractions…</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {!isLoading && !error && filteredAttractions.length === 0 ? (
+          <Text style={styles.message}>
+            {search ? `No attractions match “${search}”.` : 'No attractions yet. Add your first site.'}
+          </Text>
+        ) : null}
+        {!isLoading && !error ? filteredAttractions.map((item, index) => (
           <Pressable
             accessibilityRole="button"
             key={item.id}
@@ -63,10 +84,7 @@ export default function AttractionsListScreen() {
             <Text style={[styles.editIcon, index === 0 && styles.featuredText]}>✎</Text>
             <Text style={[styles.moreIcon, index === 0 && styles.featuredText]}>⋮</Text>
           </Pressable>
-        ))}
-        {filteredAttractions.length === 0 ? (
-          <Text style={styles.emptyMessage}>No attractions match “{search}”.</Text>
-        ) : null}
+        )) : null}
 
         <Pressable
           accessibilityRole="button"
@@ -176,11 +194,16 @@ const styles = StyleSheet.create({
     color: adminColors.text,
     fontSize: 20,
   },
-  emptyMessage: {
+  message: {
     paddingVertical: 20,
     color: adminColors.muted,
     textAlign: 'center',
     fontSize: 14,
+  },
+  error: {
+    paddingVertical: 12,
+    color: adminColors.rust,
+    fontSize: 13,
   },
   filterButton: {
     padding: 12,

@@ -6,6 +6,10 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 
 SplashScreen.preventAutoHideAsync();
 
+export const unstable_settings = {
+  initialRouteName: 'welcome',
+};
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (

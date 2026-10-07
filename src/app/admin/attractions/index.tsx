@@ -7,7 +7,7 @@ import { useAdmin } from '@/features/admin/admin-context';
 import { AdminHeader, AdminScreen, adminColors } from '@/features/admin/admin-ui';
 
 export default function AttractionsListScreen() {
-  const { attractions, isLoading, error } = useAdmin();
+  const { attractions, isLoading, error, deleteAttraction } = useAdmin();
   const { signOutAdmin } = useAdminAuth();
   const [search, setSearch] = useState('');
   const [searchByLocation, setSearchByLocation] = useState(false);
@@ -31,6 +31,39 @@ export default function AttractionsListScreen() {
         signOutError instanceof Error ? signOutError.message : 'Please try again.',
       );
     }
+  }
+
+  async function removeAttraction(id: string) {
+    try {
+      await deleteAttraction(id);
+    } catch (deleteError) {
+      Alert.alert(
+        'Could not delete attraction',
+        deleteError instanceof Error ? deleteError.message : 'Please try again.',
+      );
+    }
+  }
+
+  function confirmDeleteAttraction(id: string) {
+    Alert.alert('Delete attraction', 'Are you sure you want to delete the listed attraction?', [
+      { text: 'No', style: 'cancel' },
+      { text: 'Yes', style: 'destructive', onPress: () => void removeAttraction(id) },
+    ]);
+  }
+
+  function showAttractionOptions(id: string, name: string) {
+    Alert.alert(name, undefined, [
+      {
+        text: 'Edit',
+        onPress: () => router.push(`/admin/attractions/${id}`),
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => confirmDeleteAttraction(id),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   return (
@@ -64,15 +97,9 @@ export default function AttractionsListScreen() {
           </Text>
         ) : null}
         {!isLoading && !error ? filteredAttractions.map((item, index) => (
-          <Pressable
-            accessibilityRole="button"
+          <View
             key={item.id}
-            onPress={() => router.push(`/admin/attractions/${item.id}`)}
-            style={({ pressed }) => [
-              styles.attractionCard,
-              index === 0 && styles.featuredCard,
-              pressed && styles.pressed,
-            ]}>
+            style={[styles.attractionCard, index === 0 && styles.featuredCard]}>
             <View style={styles.attractionCopy}>
               <Text style={[styles.attractionName, index === 0 && styles.featuredText]}>
                 {item.name}
@@ -81,9 +108,14 @@ export default function AttractionsListScreen() {
                 {item.category}
               </Text>
             </View>
-            <Text style={[styles.editIcon, index === 0 && styles.featuredText]}>✎</Text>
-            <Text style={[styles.moreIcon, index === 0 && styles.featuredText]}>⋮</Text>
-          </Pressable>
+            <Pressable
+              accessibilityLabel={`Options for ${item.name}`}
+              accessibilityRole="button"
+              onPress={() => showAttractionOptions(item.id, item.name)}
+              style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
+              <Text style={[styles.moreIcon, index === 0 && styles.featuredText]}>⋮</Text>
+            </Pressable>
+          </View>
         )) : null}
 
         <Pressable
@@ -186,9 +218,11 @@ const styles = StyleSheet.create({
   featuredCategory: {
     color: '#D8E3DA',
   },
-  editIcon: {
-    color: adminColors.green,
-    fontSize: 18,
+  moreButton: {
+    width: 32,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   moreIcon: {
     color: adminColors.text,

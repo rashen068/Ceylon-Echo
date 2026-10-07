@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { TextInputProps, ViewStyle } from 'react-native';
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const adminColors = {
   background: '#F7F5F1',

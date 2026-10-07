@@ -35,7 +35,7 @@ export default function AttractionsListScreen() {
 
   return (
     <AdminScreen>
-      <AdminHeader title="Curate Attractions" onSignOut={() => void handleSignOut()} />
+      <AdminHeader title="Attraction List" onSignOut={() => void handleSignOut()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.searchRow}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -55,7 +55,7 @@ export default function AttractionsListScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.sectionTitle}>Curate Attractions</Text>
+        <Text style={styles.sectionTitle}>Attraction List</Text>
         {isLoading ? <Text style={styles.message}>Loading attractions…</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {!isLoading && !error && filteredAttractions.length === 0 ? (

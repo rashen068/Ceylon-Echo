@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
@@ -101,18 +102,9 @@ function AttractionEditor({
   const isNew = id === 'new';
   const [values, setValues] = useState<FormValues>(existing ?? emptyValues);
   const [attractionId] = useState(() => (isNew ? createAttractionId() : id));
-  const [latitudeText, setLatitudeText] = useState(
-    existing?.latitude === null || existing?.latitude === undefined
-      ? ''
-      : String(existing.latitude),
-  );
-  const [longitudeText, setLongitudeText] = useState(
-    existing?.longitude === null || existing?.longitude === undefined
-      ? ''
-      : String(existing.longitude),
-  );
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   function updateField(field: keyof FormValues, value: string) {
     if (field === 'name' || field === 'category' || field === 'description' || field === 'location') {
@@ -126,21 +118,13 @@ function AttractionEditor({
       return;
     }
 
-    const latitude = parseCoordinate(latitudeText, -90, 90);
-    const longitude = parseCoordinate(longitudeText, -180, 180);
-    if (latitude === undefined || longitude === undefined) {
-      setValidationMessage('Enter valid latitude (−90 to 90) and longitude (−180 to 180).');
-      return;
-    }
-
     setValidationMessage(null);
     setIsBusy(true);
     try {
-      const attraction = { ...values, latitude, longitude };
       if (isNew) {
-        await addAttraction(attractionId, attraction);
+        await addAttraction(attractionId, values);
       } else {
-        await updateAttraction(attractionId, attraction);
+        await updateAttraction(attractionId, values);
       }
       router.replace('/admin/attractions');
     } catch (saveError) {
@@ -149,6 +133,34 @@ function AttractionEditor({
       );
     } finally {
       setIsBusy(false);
+    }
+  }
+
+  async function getCurrentLocation() {
+    setValidationMessage(null);
+    setIsLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        throw new Error('Location permission was not granted. Enable location access to use GPS.');
+      }
+
+      const { coords } = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setValues((current) => ({
+        ...current,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      }));
+    } catch (locationError) {
+      setValidationMessage(
+        locationError instanceof Error
+          ? locationError.message
+          : 'Could not get the current GPS location.',
+      );
+    } finally {
+      setIsLocating(false);
     }
   }
 
@@ -260,7 +272,7 @@ function AttractionEditor({
         title={isNew ? 'Add Attraction' : 'Edit Attraction'}
         onDelete={!isNew ? confirmDelete : undefined}
         onSave={() => void saveAttraction()}
-        saveDisabled={isBusy}
+        saveDisabled={isBusy || isLocating}
       />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.fieldGroup}>
@@ -302,30 +314,28 @@ function AttractionEditor({
           placeholder="Describe this attraction..."
           value={values.description}
         />
-        <AdminField
-          label="Location"
-          onChangeText={(value) => updateField('location', value)}
-          placeholder="District, Province, Sri Lanka"
-          value={values.location}
-        />
-
-        <View style={styles.coordinateRow}>
+        <View style={styles.locationGroup}>
           <AdminField
-            fieldStyle={styles.coordinateField}
-            keyboardType="decimal-pad"
-            label="Latitude"
-            onChangeText={setLatitudeText}
-            placeholder="7.9570"
-            value={latitudeText}
+            label="Location"
+            onChangeText={(value) => updateField('location', value)}
+            placeholder="District, Province, Sri Lanka"
+            value={values.location}
           />
-          <AdminField
-            fieldStyle={styles.coordinateField}
-            keyboardType="decimal-pad"
-            label="Longitude"
-            onChangeText={setLongitudeText}
-            placeholder="80.7603"
-            value={longitudeText}
-          />
+          <Pressable
+            accessibilityRole="button"
+            disabled={isBusy || isLocating}
+            onPress={() => void getCurrentLocation()}
+            style={[styles.locationButton, (isBusy || isLocating) && styles.disabledButton]}>
+            {isLocating ? <ActivityIndicator color={adminColors.rust} /> : null}
+            <Text style={styles.locationButtonText}>
+              {isLocating ? 'Getting Current GPS Location…' : 'Use Current GPS Location'}
+            </Text>
+          </Pressable>
+          <Text style={styles.coordinateStatus}>
+            {values.latitude !== null && values.longitude !== null
+              ? `GPS coordinates: ${values.latitude.toFixed(5)}, ${values.longitude.toFixed(5)}`
+              : 'GPS coordinates not set'}
+          </Text>
         </View>
 
         <View style={styles.fieldGroup}>
@@ -383,16 +393,6 @@ function AttractionEditor({
       </ScrollView>
     </AdminScreen>
   );
-}
-
-function parseCoordinate(value: string, min: number, max: number) {
-  if (!value.trim()) {
-    return null;
-  }
-  const coordinate = Number(value);
-  return Number.isFinite(coordinate) && coordinate >= min && coordinate <= max
-    ? coordinate
-    : undefined;
 }
 
 function getContentType(provided: string | null | undefined, name: string, fallback: string) {
@@ -485,12 +485,32 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '300',
   },
-  coordinateRow: {
-    flexDirection: 'row',
-    gap: 12,
+  locationGroup: {
+    gap: 8,
   },
-  coordinateField: {
-    flex: 1,
+  locationButton: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: adminColors.rust,
+    borderRadius: 7,
+    backgroundColor: adminColors.surface,
+  },
+  locationButtonText: {
+    color: adminColors.rust,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  coordinateStatus: {
+    color: adminColors.muted,
+    fontSize: 12,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   uploadButton: {
     minHeight: 44,

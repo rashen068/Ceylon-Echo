@@ -1,4 +1,5 @@
 import * as Device from 'expo-device';
+import { Link } from 'expo-router'; // <-- Added this import
 import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -54,6 +55,24 @@ export default function HomeScreen() {
             hint={<ThemedText type="code">npm run reset-project</ThemedText>}
           />
         </ThemedView>
+
+        {/* --- Added Admin Button Here --- */}
+        <Link 
+          href="/admin" 
+          style={{ 
+            marginTop: 15, 
+            padding: 15, 
+            backgroundColor: '#007BFF', 
+            color: 'white', 
+            textAlign: 'center', 
+            borderRadius: 8, 
+            fontSize: 16, 
+            fontWeight: 'bold',
+            alignSelf: 'stretch',
+            overflow: 'hidden'
+          }}>
+          Go to Admin Panel
+        </Link>
 
         {Platform.OS === 'web' && <WebBadge />}
       </SafeAreaView>

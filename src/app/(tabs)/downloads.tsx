@@ -1,7 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -11,7 +14,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { touristGuides } from '@/features/tourist/mock-guide-data';
+import {
+  downloadOfflineGuide,
+  formatFileSize,
+  getOfflineGuides,
+  removeOfflineGuide,
+} from '@/features/tourist/offline-guides';
+import type { OfflineGuide } from '@/features/tourist/offline-guides';
+import { requireFirestore } from '@/lib/firebase';
+
+type Guide = {
+  id: string;
+  title: string;
+  category: string;
+  imageUrl: string | null;
+  audioUrl: string;
+};
 
 const colors = {
   background: '#F8F6F1',
@@ -19,11 +37,141 @@ const colors = {
   ink: '#1F2937',
   muted: '#858B91',
   line: '#E9E5DE',
+  rust: '#B85E3B',
   green: '#315443',
   greenLight: '#EDF3EF',
 };
 
 export default function DownloadsScreen() {
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [offlineGuides, setOfflineGuides] = useState<OfflineGuide[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyGuideId, setBusyGuideId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const refreshGuides = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    let savedGuides: OfflineGuide[] = [];
+    try {
+      savedGuides = await getOfflineGuides();
+      setOfflineGuides(savedGuides);
+      setGuides(savedGuides.map(toGuide));
+      if (savedGuides.length > 0) {
+        setIsLoading(false);
+      }
+    } catch (loadError) {
+      setErrorMessage(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Could not read saved offline guides.',
+      );
+    }
+
+    try {
+      const snapshot = await getDocs(
+        query(collection(requireFirestore(), 'attractions'), orderBy('name', 'asc')),
+      );
+      const availableGuides = snapshot.docs.flatMap((item) => {
+        const data = item.data();
+        const media = isMediaWithUrl(data.audioGuide) ? data.audioGuide : null;
+        if (!media) {
+          return [];
+        }
+        const firstPhoto = Array.isArray(data.photos)
+          ? data.photos.find(isMediaWithUrl)
+          : undefined;
+        return [{
+          id: item.id,
+          title: getText(data.name) || 'Untitled attraction',
+          category: getText(data.category) || 'Audio guide',
+          imageUrl: firstPhoto?.url ?? null,
+          audioUrl: media.url,
+        }];
+      });
+
+      const availableIds = new Set(availableGuides.map((guide) => guide.id));
+      const savedOnlyGuides = savedGuides
+        .filter((guide) => !availableIds.has(guide.id))
+        .map(toGuide);
+      setGuides([...availableGuides, ...savedOnlyGuides]);
+    } catch (loadError) {
+      setGuides(savedGuides.map(toGuide));
+      if (savedGuides.length === 0) {
+        setErrorMessage(
+          loadError instanceof Error
+            ? loadError.message
+            : 'Could not load audio guides. Please try again.',
+        );
+      } else {
+        setErrorMessage('Showing saved guides. Connect to the internet to browse new downloads.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshGuides();
+    }, [refreshGuides]),
+  );
+
+  async function handleGuideAction(guide: Guide) {
+    const offlineGuide = offlineGuides.find((item) => item.id === guide.id);
+    if (offlineGuide) {
+      router.push({
+        pathname: '/player',
+        params: {
+          audioUrl: offlineGuide.localUri,
+          title: `${offlineGuide.title} Audio Guide`,
+          subtitle: offlineGuide.category,
+          imageUrl: offlineGuide.imageUrl ?? '',
+        },
+      });
+      return;
+    }
+
+    setBusyGuideId(guide.id);
+    setErrorMessage(null);
+    try {
+      const saved = await downloadOfflineGuide(guide);
+      setOfflineGuides((current) => [...current.filter((item) => item.id !== saved.id), saved]);
+    } catch (downloadError) {
+      let message =
+        downloadError instanceof Error ? downloadError.message : `Could not download ${guide.title}.`;
+      try {
+        setOfflineGuides(await getOfflineGuides());
+      } catch (refreshError) {
+        message += ` Saved download state could not be refreshed: ${
+          refreshError instanceof Error ? refreshError.message : 'unknown error'
+        }`;
+      }
+      setErrorMessage(
+        message,
+      );
+    } finally {
+      setBusyGuideId(null);
+    }
+  }
+
+  async function handleRemove(guideId: string) {
+    setBusyGuideId(guideId);
+    setErrorMessage(null);
+    try {
+      await removeOfflineGuide(guideId);
+      setOfflineGuides((current) => current.filter((item) => item.id !== guideId));
+    } catch (removeError) {
+      setErrorMessage(
+        removeError instanceof Error
+          ? removeError.message
+          : 'Could not remove this offline guide.',
+      );
+    } finally {
+      setBusyGuideId(null);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -33,29 +181,115 @@ export default function DownloadsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Downloaded Guides</Text>
-        <View style={styles.guideList}>
-          {touristGuides.map((guide) => (
-            <View key={guide.id} style={styles.guideCard}>
-              <Image contentFit="cover" source={{ uri: guide.image }} style={styles.thumbnail} />
-              <View style={styles.guideCopy}>
-                <Text numberOfLines={1} style={styles.guideTitle}>
-                  {guide.title}
-                </Text>
-                <Text style={styles.fileSize}>{guide.fileSize}</Text>
-              </View>
-              <Pressable
-                accessibilityLabel={`Play ${guide.title}`}
-                accessibilityRole="button"
-                onPress={() => router.push('/player')}
-                style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}>
-                <Feather color={colors.green} name="play" size={15} />
-              </Pressable>
-            </View>
-          ))}
-        </View>
+        <Text style={styles.sectionTitle}>Available Audio Guides</Text>
+        {isLoading ? (
+          <View style={styles.state}>
+            <ActivityIndicator color={colors.green} />
+            <Text style={styles.stateText}>Loading guides...</Text>
+          </View>
+        ) : errorMessage && guides.length === 0 ? (
+          <View style={styles.state}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Pressable accessibilityRole="button" onPress={() => void refreshGuides()}>
+              <Text style={styles.retryText}>Try Again</Text>
+            </Pressable>
+          </View>
+        ) : guides.length === 0 ? (
+          <View style={styles.state}>
+            <Text style={styles.stateText}>No audio guides are available yet.</Text>
+          </View>
+        ) : (
+          <View style={styles.guideList}>
+            {guides.map((guide) => {
+              const savedGuide = offlineGuides.find((item) => item.id === guide.id);
+              const isBusy = busyGuideId === guide.id;
+              return (
+                <View key={guide.id} style={styles.guideCard}>
+                  {guide.imageUrl ? (
+                    <Image
+                      contentFit="cover"
+                      source={{ uri: guide.imageUrl }}
+                      style={styles.thumbnail}
+                    />
+                  ) : (
+                    <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+                      <Feather color={colors.green} name="map" size={17} />
+                    </View>
+                  )}
+                  <View style={styles.guideCopy}>
+                    <Text numberOfLines={1} style={styles.guideTitle}>
+                      {guide.title}
+                    </Text>
+                    <Text style={styles.fileSize}>
+                      {savedGuide ? formatFileSize(savedGuide.sizeBytes) : 'Available to download'}
+                    </Text>
+                    {savedGuide && (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={isBusy}
+                        onPress={() => void handleRemove(guide.id)}>
+                        <Text style={styles.removeText}>Remove download</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <Pressable
+                    accessibilityLabel={
+                      savedGuide ? `Play ${guide.title} offline` : `Download ${guide.title}`
+                    }
+                    accessibilityRole="button"
+                    disabled={isBusy}
+                    onPress={() => void handleGuideAction(guide)}
+                    style={({ pressed }) => [
+                      styles.playButton,
+                      pressed && styles.pressed,
+                      isBusy && styles.disabled,
+                    ]}>
+                    {isBusy ? (
+                      <ActivityIndicator color={colors.green} size="small" />
+                    ) : (
+                      <Feather
+                        color={colors.green}
+                        name={savedGuide ? 'play' : 'download'}
+                        size={15}
+                      />
+                    )}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        {errorMessage && guides.length > 0 && (
+          <Text accessibilityRole="alert" style={styles.errorBanner}>
+            {errorMessage}
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function getText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function toGuide(guide: OfflineGuide): Guide {
+  return {
+    id: guide.id,
+    title: guide.title,
+    category: guide.category,
+    imageUrl: guide.imageUrl,
+    audioUrl: guide.audioUrl,
+  };
+}
+
+function isMediaWithUrl(value: unknown): value is { url: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    typeof value.url === 'string' &&
+    value.url.length > 0
   );
 }
 
@@ -109,6 +343,10 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: colors.line,
   },
+  thumbnailPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   guideCopy: {
     flex: 1,
     gap: 3,
@@ -122,6 +360,11 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 9,
   },
+  removeText: {
+    color: colors.rust,
+    fontSize: 9,
+    fontWeight: '600',
+  },
   playButton: {
     width: 30,
     height: 30,
@@ -129,6 +372,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 16,
     backgroundColor: colors.greenLight,
+  },
+  disabled: {
+    opacity: 0.6,
+  },
+  state: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    gap: 10,
+  },
+  stateText: {
+    color: colors.muted,
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  errorText: {
+    color: colors.rust,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  errorBanner: {
+    color: colors.rust,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  retryText: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.65,

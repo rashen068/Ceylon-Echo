@@ -28,6 +28,8 @@ const emptyValues: FormValues = {
   category: '',
   description: '',
   location: '',
+  durationMinutes: null,
+  chapterCount: null,
   latitude: null,
   longitude: null,
   photos: [],
@@ -101,6 +103,16 @@ function AttractionEditor({
 }) {
   const isNew = id === 'new';
   const [values, setValues] = useState<FormValues>(existing ?? emptyValues);
+  const [durationInput, setDurationInput] = useState(
+    existing?.durationMinutes === null || existing?.durationMinutes === undefined
+      ? ''
+      : String(existing.durationMinutes),
+  );
+  const [chapterCountInput, setChapterCountInput] = useState(
+    existing?.chapterCount === null || existing?.chapterCount === undefined
+      ? ''
+      : String(existing.chapterCount),
+  );
   const [attractionId] = useState(() => (isNew ? createAttractionId() : id));
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -117,14 +129,23 @@ function AttractionEditor({
       setValidationMessage('Add an attraction name before saving.');
       return;
     }
+    if (!isOptionalPositiveInteger(durationInput) || !isOptionalPositiveInteger(chapterCountInput)) {
+      setValidationMessage('Duration and chapter count must be positive whole numbers.');
+      return;
+    }
 
     setValidationMessage(null);
     setIsBusy(true);
     try {
+      const attractionValues: FormValues = {
+        ...values,
+        durationMinutes: durationInput.trim() ? Number(durationInput) : null,
+        chapterCount: chapterCountInput.trim() ? Number(chapterCountInput) : null,
+      };
       if (isNew) {
-        await addAttraction(attractionId, values);
+        await addAttraction(attractionId, attractionValues);
       } else {
-        await updateAttraction(attractionId, values);
+        await updateAttraction(attractionId, attractionValues);
       }
       router.replace('/admin/attractions');
     } catch (saveError) {
@@ -314,6 +335,20 @@ function AttractionEditor({
           placeholder="Describe this attraction..."
           value={values.description}
         />
+        <AdminField
+          keyboardType="number-pad"
+          label="Audio guide duration (minutes)"
+          onChangeText={setDurationInput}
+          placeholder="e.g. 45"
+          value={durationInput}
+        />
+        <AdminField
+          keyboardType="number-pad"
+          label="Audio chapter count"
+          onChangeText={setChapterCountInput}
+          placeholder="e.g. 8"
+          value={chapterCountInput}
+        />
         <View style={styles.locationGroup}>
           <AdminField
             label="Location"
@@ -393,6 +428,10 @@ function AttractionEditor({
       </ScrollView>
     </AdminScreen>
   );
+}
+
+function isOptionalPositiveInteger(value: string): boolean {
+  return value.trim() === '' || (/^\d+$/.test(value.trim()) && Number(value) > 0);
 }
 
 function getContentType(provided: string | null | undefined, name: string, fallback: string) {

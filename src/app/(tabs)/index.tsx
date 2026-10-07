@@ -1,7 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -11,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { featuredGuide } from '@/features/tourist/mock-guide-data';
+import { requireFirestore } from '@/lib/firebase';
 
 const colors = {
   background: '#F8F6F1',
@@ -24,7 +27,76 @@ const colors = {
   greenLight: '#EAF1EC',
 };
 
+type FeaturedAttraction = {
+  id: string;
+  title: string;
+  category: string;
+  location: string;
+  description: string;
+  imageUrl: string | null;
+};
+
 export default function HomeScreen() {
+  const [attraction, setAttraction] = useState<FeaturedAttraction | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      async function loadFeaturedAttraction() {
+        setIsLoading(true);
+        setErrorMessage(null);
+        try {
+          const snapshot = await getDocs(
+            query(collection(requireFirestore(), 'attractions'), orderBy('name', 'asc')),
+          );
+          const firstAttraction = snapshot.docs[0];
+          if (!firstAttraction) {
+            if (isActive) {
+              setAttraction(null);
+            }
+            return;
+          }
+
+          const data = firstAttraction.data();
+          const photo = Array.isArray(data.photos)
+            ? data.photos.find(isMediaWithUrl)
+            : undefined;
+          if (isActive) {
+            setAttraction({
+              id: firstAttraction.id,
+              title: getText(data.name) || 'Untitled attraction',
+              category: getText(data.category) || 'Heritage Site',
+              location: getText(data.location) || 'Location not provided',
+              description:
+                getText(data.description) || 'Discover this remarkable Sri Lankan attraction.',
+              imageUrl: photo?.url ?? (getText(data.imageUrl) || null),
+            });
+          }
+        } catch (loadError) {
+          if (isActive) {
+            setErrorMessage(
+              loadError instanceof Error
+                ? loadError.message
+                : 'Could not load attractions. Please try again.',
+            );
+          }
+        } finally {
+          if (isActive) {
+            setIsLoading(false);
+          }
+        }
+      }
+
+      void loadFeaturedAttraction();
+      return () => {
+        isActive = false;
+      };
+    }, []),
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -43,38 +115,54 @@ export default function HomeScreen() {
           Explore the island through the stories behind its remarkable places.
         </Text>
 
-        <Pressable
-          accessibilityLabel={`Explore ${featuredGuide.title}`}
-          accessibilityRole="button"
-          onPress={() => router.push(`/attraction/${featuredGuide.id}`)}
-          style={({ pressed }) => [styles.featuredCard, pressed && styles.pressed]}>
-          <View style={styles.imageContainer}>
-            <Image
-              contentFit="cover"
-              source={{ uri: featuredGuide.image }}
-              style={styles.featuredImage}
-            />
-            <View style={styles.imageShade} />
-            <Text style={styles.imageLabel}>FEATURED HERITAGE SITE</Text>
+        {isLoading ? (
+          <View style={styles.feedbackCard}>
+            <ActivityIndicator color={colors.green} />
+            <Text style={styles.feedbackText}>Loading attractions...</Text>
           </View>
-          <View style={styles.cardContent}>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>UNESCO World Heritage</Text>
-            </View>
-            <Text style={styles.featuredTitle}>{featuredGuide.title}</Text>
-            <View style={styles.location}>
-              <Feather color={colors.muted} name="map-pin" size={14} />
-              <Text style={styles.locationText}>Matale District, Central Province</Text>
-            </View>
-            <Text style={styles.description}>
-              Discover the ancient rock fortress and its extraordinary gardens with an audio guide.
-            </Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.exploreText}>Explore attraction</Text>
-              <Feather color={colors.rust} name="arrow-right" size={17} />
-            </View>
+        ) : errorMessage ? (
+          <View style={styles.feedbackCard}>
+            <Feather color={colors.rust} name="alert-circle" size={22} />
+            <Text style={styles.feedbackText}>{errorMessage}</Text>
           </View>
-        </Pressable>
+        ) : attraction ? (
+          <Pressable
+            accessibilityLabel={`Explore ${attraction.title}`}
+            accessibilityRole="button"
+            onPress={() => router.push(`/attraction/${attraction.id}`)}
+            style={({ pressed }) => [styles.featuredCard, pressed && styles.pressed]}>
+            <View style={styles.imageContainer}>
+              {attraction.imageUrl && (
+                <Image
+                  contentFit="cover"
+                  source={{ uri: attraction.imageUrl }}
+                  style={styles.featuredImage}
+                />
+              )}
+              <View style={styles.imageShade} />
+              <Text style={styles.imageLabel}>FEATURED HERITAGE SITE</Text>
+            </View>
+            <View style={styles.cardContent}>
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{attraction.category}</Text>
+              </View>
+              <Text style={styles.featuredTitle}>{attraction.title}</Text>
+              <View style={styles.location}>
+                <Feather color={colors.muted} name="map-pin" size={14} />
+                <Text style={styles.locationText}>{attraction.location}</Text>
+              </View>
+              <Text style={styles.description}>{attraction.description}</Text>
+              <View style={styles.cardFooter}>
+                <Text style={styles.exploreText}>Explore attraction</Text>
+                <Feather color={colors.rust} name="arrow-right" size={17} />
+              </View>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={styles.feedbackCard}>
+            <Text style={styles.feedbackText}>No attractions are available yet.</Text>
+          </View>
+        )}
 
         <Pressable
           accessibilityRole="button"
@@ -86,6 +174,19 @@ export default function HomeScreen() {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function getText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isMediaWithUrl(value: unknown): value is { url: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    typeof value.url === 'string'
   );
 }
 
@@ -138,6 +239,23 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: 16,
     backgroundColor: colors.white,
+  },
+  feedbackCard: {
+    minHeight: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+  },
+  feedbackText: {
+    color: colors.muted,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 18,
   },
   imageContainer: {
     height: 220,

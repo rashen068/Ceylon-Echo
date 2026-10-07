@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { onboardingNavigation } from '@/navigation/app-navigation';
 
 export default function WelcomePage() {
   return (
@@ -21,7 +23,7 @@ export default function WelcomePage() {
         </View>
       </View>
 
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.brand}>
           <View style={styles.wordmark}>
             <View style={styles.wordmarkCrest}>
@@ -36,6 +38,18 @@ export default function WelcomePage() {
               <View style={styles.emblemTrunk} />
             </View>
           </View>
+        </View>
+        <View style={styles.welcomeCopy}>
+          <Text style={styles.welcomeTitle}>Discover the soul of Sri Lanka</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Find remarkable places, stories and experiences across the island.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onboardingNavigation.begin}
+            style={({ pressed }) => [styles.startButton, pressed && styles.pressed]}>
+            <Text style={styles.startButtonText}>Begin your journey</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>
@@ -149,6 +163,44 @@ const styles = StyleSheet.create({
   brand: {
     alignItems: 'center',
     marginTop: '18%',
+  },
+  welcomeCopy: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingHorizontal: 26,
+    paddingBottom: 24,
+  },
+  welcomeTitle: {
+    color: '#ffffff',
+    fontFamily: 'serif',
+    fontSize: 25,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  welcomeSubtitle: {
+    marginTop: 8,
+    color: '#f2f1e7',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  startButton: {
+    width: '100%',
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 22,
+    borderRadius: 10,
+    backgroundColor: '#315b49',
+  },
+  pressed: {
+    opacity: 0.82,
+  },
+  startButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   wordmark: {
     alignItems: 'center',

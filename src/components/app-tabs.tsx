@@ -31,7 +31,7 @@ export default function AppTabs() {
 
       <NativeTabs.Trigger name="downloads">
         <NativeTabs.Trigger.Label>Downloads</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={<Feather name="download" size={22} />} />
+        <NativeTabs.Trigger.VectorIcon family={Feather} name="download" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

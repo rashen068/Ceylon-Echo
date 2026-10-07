@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -11,8 +12,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { featuredGuide } from '@/features/tourist/mock-guide-data';
 
 const colors = {
   background: '#F8F6F1',
@@ -24,8 +23,38 @@ const colors = {
   green: '#315443',
 };
 
-export default function AudioPlayerScreen() {
-  const [isPlaying, setIsPlaying] = useState(false);
+export default function PlayerScreen() {
+  const { audioUrl, title, subtitle, imageUrl } = useLocalSearchParams<{
+    audioUrl?: string;
+    title?: string;
+    subtitle?: string;
+    imageUrl?: string;
+  }>();
+  const player = useAudioPlayer(audioUrl ? { uri: audioUrl } : null, {
+    updateInterval: 500,
+  });
+  const playbackStatus = useAudioPlayerStatus(player);
+  const isPlaying = playbackStatus.playing;
+  const isLoading = Boolean(audioUrl) && !playbackStatus.isLoaded && !playbackStatus.error;
+  const playbackError =
+    playbackStatus.error ??
+    (!audioUrl ? 'This attraction does not have an audio guide yet.' : null);
+  const progress =
+    playbackStatus.duration > 0
+      ? Math.min(playbackStatus.currentTime / playbackStatus.duration, 1)
+      : 0;
+
+  function togglePlayback() {
+    if (!playbackStatus.isLoaded) {
+      return;
+    }
+
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -49,24 +78,28 @@ export default function AudioPlayerScreen() {
           </Pressable>
         </View>
 
-        <Image
-          contentFit="cover"
-          source={{ uri: featuredGuide.image }}
-          style={styles.coverImage}
-        />
+        {imageUrl ? (
+          <Image contentFit="cover" source={{ uri: imageUrl }} style={styles.coverImage} />
+        ) : (
+          <View style={[styles.coverImage, styles.coverPlaceholder]}>
+            <Feather color={colors.green} name="music" size={42} />
+          </View>
+        )}
         <View style={styles.trackInfo}>
-          <Text style={styles.trackTitle}>Sigiriya Audio Guide - Chapter 1</Text>
-          <Text style={styles.trackSubtitle}>Ancient Fortress & gardens</Text>
+          <Text style={styles.trackTitle}>{title || 'Audio Guide'}</Text>
+          <Text style={styles.trackSubtitle}>{subtitle || 'Explore the attraction'}</Text>
         </View>
 
         <View style={styles.progressSection}>
-          <View accessibilityLabel="Audio progress, 25 percent" style={styles.progressTrack}>
-            <View style={styles.progressFill} />
-            <View style={styles.progressThumb} />
+          <View
+            accessibilityLabel={`Audio progress, ${Math.round(progress * 100)} percent`}
+            style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+            <View style={[styles.progressThumb, { left: `${progress * 100}%` }]} />
           </View>
           <View style={styles.timeRow}>
-            <Text style={styles.timestamp}>01:15</Text>
-            <Text style={styles.timestamp}>04:30</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(playbackStatus.currentTime)}</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(playbackStatus.duration)}</Text>
           </View>
         </View>
 
@@ -77,9 +110,14 @@ export default function AudioPlayerScreen() {
           <Pressable
             accessibilityLabel={isPlaying ? 'Pause audio' : 'Play audio'}
             accessibilityRole="button"
-            onPress={() => setIsPlaying((playing) => !playing)}
+            disabled={isLoading || !playbackStatus.isLoaded}
+            onPress={togglePlayback}
             style={styles.playControl}>
-            <Feather color={colors.white} name={isPlaying ? 'pause' : 'play'} size={22} />
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Feather color={colors.white} name={isPlaying ? 'pause' : 'play'} size={22} />
+            )}
           </Pressable>
           <Pressable accessibilityLabel="Next chapter" style={styles.skipButton}>
             <Feather color={colors.green} name="skip-forward" size={20} />
@@ -93,9 +131,17 @@ export default function AudioPlayerScreen() {
           <Feather color={colors.rust} name="download" size={13} />
           <Text style={styles.offlineText}>Download for Offline Listening</Text>
         </Pressable>
+        {playbackError && <Text style={styles.errorText}>{playbackError}</Text>}
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function formatTimestamp(seconds: number): string {
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -138,6 +184,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.line,
   },
+  coverPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   trackInfo: {
     marginTop: 16,
     alignItems: 'center',
@@ -164,14 +214,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.line,
   },
   progressFill: {
-    width: '25%',
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.rust,
   },
   progressThumb: {
     position: 'absolute',
-    left: '25%',
     width: 12,
     height: 12,
     marginLeft: -6,
@@ -219,6 +267,12 @@ const styles = StyleSheet.create({
     color: colors.rust,
     fontSize: 11,
     fontWeight: '600',
+  },
+  errorText: {
+    marginTop: 10,
+    color: colors.rust,
+    textAlign: 'center',
+    fontSize: 12,
   },
   pressed: {
     opacity: 0.7,

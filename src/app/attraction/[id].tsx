@@ -1,8 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -13,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { featuredGuide, touristGuides } from '@/features/tourist/mock-guide-data';
+import { requireFirestore } from '@/lib/firebase';
 
 const colors = {
   background: '#F8F6F1',
@@ -27,20 +29,164 @@ const colors = {
   greenLight: '#EAF1EC',
 };
 
+type AttractionDetails = {
+  title: string;
+  category: string;
+  location: string;
+  description: string;
+  imageUrl: string | null;
+  audioUrl: string | null;
+  duration: string;
+  chapterCount: string;
+};
+
+function getText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isMediaWithUrl(value: unknown): value is { url: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    typeof value.url === 'string'
+  );
+}
+
+function formatDuration(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `${value} Mins`;
+  }
+  return getText(value) || '—';
+}
+
+function formatChapterCount(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `${value} Parts`;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+  return '—';
+}
+
 export default function AttractionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
-  const attraction = touristGuides.find((guide) => guide.id === id) ?? featuredGuide;
+  const [attraction, setAttraction] = useState<AttractionDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadAttraction() {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        if (!id) {
+          throw new Error('No attraction ID was provided.');
+        }
+
+        const snapshot = await getDoc(doc(requireFirestore(), 'attractions', id));
+        if (!snapshot.exists()) {
+          throw new Error('This attraction could not be found.');
+        }
+
+        const data = snapshot.data();
+        const photos = Array.isArray(data.photos) ? data.photos : [];
+        const firstPhoto = photos.find(isMediaWithUrl);
+        const audioGuide = isMediaWithUrl(data.audioGuide) ? data.audioGuide : null;
+        const chapters = Array.isArray(data.chapters) ? data.chapters.length : undefined;
+
+        if (isActive) {
+          setAttraction({
+            title: getText(data.name) || getText(data.title) || 'Untitled attraction',
+            category: getText(data.category) || 'Heritage Site',
+            location: getText(data.location) || 'Location not provided',
+            description: getText(data.description) || 'No description available.',
+            imageUrl:
+              getText(data.imageUrl) ||
+              getText(data.image) ||
+              firstPhoto?.url ||
+              null,
+            audioUrl: audioGuide?.url || getText(data.audioUrl) || null,
+            duration: formatDuration(data.duration ?? data.durationMinutes ?? data.durationMins),
+            chapterCount: formatChapterCount(
+              data.chapterCount ?? data.chaptersCount ?? chapters,
+            ),
+          });
+        }
+      } catch (fetchError) {
+        if (isActive) {
+          setErrorMessage(
+            fetchError instanceof Error
+              ? fetchError.message
+              : 'Could not load this attraction. Please try again.',
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadAttraction();
+    return () => {
+      isActive = false;
+    };
+  }, [id, retryCount]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.stateContainer}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator color={colors.green} size="large" />
+        <Text style={styles.stateText}>Loading attraction...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (errorMessage || !attraction) {
+    return (
+      <SafeAreaView style={styles.stateContainer}>
+        <StatusBar barStyle="dark-content" />
+        <Feather color={colors.rust} name="alert-circle" size={30} />
+        <Text style={styles.stateTitle}>Unable to load attraction</Text>
+        <Text style={styles.stateText}>
+          {errorMessage ?? 'This attraction has no available details.'}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setRetryCount((count) => count + 1)}
+          style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.back()}>
+          <Text style={styles.backLink}>Go Back</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={[styles.hero, { height: width * 0.72 }]}>
-          <Image contentFit="cover" source={{ uri: attraction.image }} style={styles.heroImage} />
+          {attraction.imageUrl && (
+            <Image
+              contentFit="cover"
+              source={{ uri: attraction.imageUrl }}
+              style={styles.heroImage}
+            />
+          )}
           <View style={[styles.heroShade, { paddingTop: insets.top + 8 }]}>
             <View style={styles.heroHeader}>
               <Pressable
@@ -70,23 +216,19 @@ export default function AttractionDetailScreen() {
 
         <View style={styles.details}>
           <View style={styles.tagRow}>
-            <Text style={styles.heritageTag}>Heritage Site</Text>
+            <Text style={styles.heritageTag}>{attraction.category}</Text>
             <Text style={styles.unescoTag}>UNESCO World Heritage</Text>
           </View>
           <Text style={styles.title}>{attraction.title}</Text>
           <View style={styles.locationRow}>
             <Feather color={colors.muted} name="map-pin" size={14} />
-            <Text style={styles.locationText}>Matale District, Central Province</Text>
+            <Text style={styles.locationText}>{attraction.location}</Text>
           </View>
-          <Text style={styles.description}>
-            Rising dramatically from the central plains, this 5th-century fortress is a
-            masterpiece of ancient Sri Lankan urban planning, landscape design, and engineering.
-            Built by King Kashyapa, the fortress features stunning frescoes and mirror walls.
-          </Text>
+          <Text style={styles.description}>{attraction.description}</Text>
           {showMoreDetails && (
             <Text style={styles.description}>
-              Wander through the water gardens and climb the rock to discover the palace ruins,
-              frescoes, and sweeping views across the surrounding plains.
+              This guide includes {attraction.chapterCount.toLowerCase()} and takes about{' '}
+              {attraction.duration.toLowerCase()}.
             </Text>
           )}
 
@@ -97,7 +239,7 @@ export default function AttractionDetailScreen() {
               </View>
               <View>
                 <Text style={styles.infoLabel}>DURATION</Text>
-                <Text style={styles.infoValue}>45 Mins</Text>
+                <Text style={styles.infoValue}>{attraction.duration}</Text>
               </View>
             </View>
             <View style={styles.infoCard}>
@@ -106,14 +248,24 @@ export default function AttractionDetailScreen() {
               </View>
               <View>
                 <Text style={styles.infoLabel}>CHAPTERS</Text>
-                <Text style={styles.infoValue}>8 Parts</Text>
+                <Text style={styles.infoValue}>{attraction.chapterCount}</Text>
               </View>
             </View>
           </View>
 
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push('/player')}
+            onPress={() =>
+              router.push({
+                pathname: '/player',
+                params: {
+                  audioUrl: attraction.audioUrl ?? '',
+                  title: `${attraction.title} Audio Guide - Chapter 1`,
+                  subtitle: attraction.category,
+                  imageUrl: attraction.imageUrl ?? '',
+                },
+              })
+            }
             style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}>
             <Feather color={colors.white} name="play" size={17} />
             <Text style={styles.playButtonText}>Play Audio Guide</Text>
@@ -150,6 +302,43 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 12,
+    backgroundColor: colors.background,
+  },
+  stateTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  stateText: {
+    color: colors.muted,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  retryButton: {
+    marginTop: 6,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 9,
+    backgroundColor: colors.green,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  backLink: {
+    marginTop: 5,
+    color: colors.rust,
+    fontSize: 13,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingBottom: 24,

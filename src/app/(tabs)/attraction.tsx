@@ -1,7 +1,8 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { DataMessage } from '@/components/data-message';
 import {
   DetailRow,
   InfoPill,
@@ -11,75 +12,183 @@ import {
   SoftButton,
   TravelColors,
 } from '@/components/travel-ui';
+import { useAuth } from '@/context/AuthContext';
+import { useAttraction, useAttractions } from '@/hooks/use-attractions';
+import { getSavedAttractionIds, removeSavedAttraction, saveAttraction } from '@/services/userService';
 
 export default function AttractionScreen() {
-  const [saved, setSaved] = useState(false);
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { user } = useAuth();
+  const { attractions, isLoading: isLoadingAttractions, error: attractionsError } = useAttractions();
+  const selectedId = id ?? attractions[0]?.id;
+  const { attraction, isLoading, error } = useAttraction(selectedId);
+  const [savedState, setSavedState] = useState<{
+    userId: string;
+    attractionId: string;
+    saved: boolean;
+  } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saved =
+    savedState?.userId === user?.uid &&
+    savedState?.attractionId === selectedId &&
+    savedState?.saved === true;
+
+  useEffect(() => {
+    let active = true;
+    if (!user || !selectedId) {
+      return () => {
+        active = false;
+      };
+    }
+
+    getSavedAttractionIds(user.uid)
+      .then((ids) => {
+        if (active) {
+          setSavedState({
+            userId: user.uid,
+            attractionId: selectedId,
+            saved: ids.includes(selectedId),
+          });
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (active) {
+          setSaveError(loadError instanceof Error ? loadError.message : 'Could not load saved places.');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedId, user]);
+
+  async function toggleSaved() {
+    if (isSaving) {
+      return;
+    }
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (!attraction) {
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      if (saved) {
+        await removeSavedAttraction(user.uid, attraction.id);
+      } else {
+        await saveAttraction(user.uid, attraction.id);
+      }
+      setSavedState({ userId: user.uid, attractionId: attraction.id, saved: !saved });
+    } catch (saveFailure) {
+      setSaveError(saveFailure instanceof Error ? saveFailure.message : 'Could not update saved places.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (isLoadingAttractions && !selectedId) {
+    return (
+      <ScreenFrame title="Attraction details">
+        <DataMessage isLoading message="Loading attractions…" />
+      </ScreenFrame>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <ScreenFrame title="Attraction details">
+        <DataMessage isLoading message="Loading attraction…" />
+      </ScreenFrame>
+    );
+  }
+
+  if (!attraction) {
+    return (
+      <ScreenFrame title="Attraction details">
+        <DataMessage isError message={error ?? attractionsError ?? 'This attraction could not be found.'} />
+      </ScreenFrame>
+    );
+  }
 
   return (
-    <ScreenFrame title="Sigiriya Fortress" subtitle="An ancient wonder rising above the central plains.">
-      <LandscapeArt
-        tone="gold"
-        label="Illustrated landscape placeholder; Sigiriya photo asset required"
-        style={styles.heroArt}
-      />
+    <ScreenFrame title={attraction.name} subtitle={attraction.location}>
+      {attraction.photos[0]?.url ? (
+        <Image
+          accessibilityLabel={`${attraction.name} photo`}
+          resizeMode="cover"
+          source={{ uri: attraction.photos[0].url }}
+          style={styles.heroArt}
+        />
+      ) : (
+        <LandscapeArt
+          tone="gold"
+          label={`${attraction.name} landscape illustration`}
+          style={styles.heroArt}
+        />
+      )}
       <View style={styles.tagRow}>
-        <InfoPill label="UNESCO WORLD HERITAGE" />
-        <Text style={styles.rating}>★ 4.9 (2.4k)</Text>
-      </View>
-      <Text style={styles.description}>
-        Discover the remarkable rock fortress, water gardens and frescoes of one of Sri Lanka’s
-        most treasured historic sites.
-      </Text>
-      <View style={styles.facts}>
-        <Fact label="BEST TIME" value="Early morning" />
-        <Fact label="VISIT" value="2–3 hours" />
-        <Fact label="DISTANCE" value="12 km away" />
+        <InfoPill label={attraction.category || 'Attraction'} />
+        {attraction.latitude !== null && attraction.longitude !== null ? (
+          <Text style={styles.rating}>
+            {attraction.latitude.toFixed(3)}, {attraction.longitude.toFixed(3)}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.buttonRow}>
-        <PrimaryButton
-          title="Play Audio Guide"
-          onPress={() => router.push('/(tabs)/audio-guide')}
-          style={styles.flexButton}
-        />
+        {attraction.audioGuide ? (
+          <PrimaryButton
+            title="Play Audio Guide"
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/audio-guide',
+                params: { id: attraction.id },
+              })
+            }
+            style={styles.flexButton}
+          />
+        ) : (
+          <View style={styles.flexButton} />
+        )}
         <SoftButton
-          title={saved ? 'Saved ✓' : '♡ Save'}
-          onPress={() => setSaved((value) => !value)}
+          title={isSaving ? 'Saving…' : saved ? 'Saved ✓' : '♡ Save'}
+          onPress={() => void toggleSaved()}
           style={styles.saveButton}
         />
       </View>
+      {saveError ? <DataMessage isError message={saveError} /> : null}
       <View style={styles.buttonRow}>
         <SoftButton
           title="Open map"
           onPress={() => router.push('/(tabs)/map')}
           style={styles.flexButton}
         />
-        <SoftButton
-          title="Download"
-          onPress={() => router.push('/(tabs)/downloads')}
-          style={styles.flexButton}
-        />
+        {attraction.audioGuide ? (
+          <SoftButton
+            title="Download"
+            onPress={() => router.push('/(tabs)/downloads')}
+            style={styles.flexButton}
+          />
+        ) : null}
       </View>
       <Text style={styles.sectionTitle}>About this place</Text>
-      <Text style={styles.description}>
-        Wander through landscaped gardens before climbing to the summit for sweeping views across
-        the Cultural Triangle.
-      </Text>
-      <DetailRow icon="⌖" title="Sigiriya, Central Province" subtitle="Open directions in the map" />
+      <Text style={styles.description}>{attraction.description || 'No description is available yet.'}</Text>
+      <DetailRow
+        icon="⌖"
+        title={attraction.location}
+        subtitle="Open directions in the map"
+        onPress={() => router.push('/(tabs)/map')}
+      />
     </ScreenFrame>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.fact}>
-      <Text style={styles.factLabel}>{label}</Text>
-      <Text style={styles.factValue}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  heroArt: { height: 185, borderRadius: 13 },
+  heroArt: { height: 185, borderRadius: 13, width: '100%' },
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -88,17 +197,6 @@ const styles = StyleSheet.create({
   },
   rating: { color: '#a36b34', fontSize: 10, fontWeight: '700' },
   description: { marginTop: 10, color: TravelColors.muted, fontSize: 11, lineHeight: 17 },
-  facts: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    borderRadius: 11,
-    padding: 12,
-    backgroundColor: '#f0f3ed',
-  },
-  fact: { flex: 1 },
-  factLabel: { color: '#8a9088', fontSize: 7, fontWeight: '700', letterSpacing: 0.5 },
-  factValue: { marginTop: 4, color: '#26382f', fontSize: 9, fontWeight: '600' },
   buttonRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   flexButton: { flex: 1 },
   saveButton: { minWidth: 95 },

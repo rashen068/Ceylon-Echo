@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AuthGate } from '@/components/auth-gate';
+import { useAuth } from '@/context/AuthContext';
+import { getUserProfile, updateUserProfile } from '@/services/userService';
 
 const interests = [
   { id: 'heritage', title: 'Ancient heritage', detail: 'Temples, ruins and stories' },
@@ -10,12 +14,71 @@ const interests = [
 ];
 
 export default function PreferencesScreen() {
+  return (
+    <AuthGate>
+      <AuthenticatedPreferencesScreen />
+    </AuthGate>
+  );
+}
+
+function AuthenticatedPreferencesScreen() {
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>(['heritage', 'nature']);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      return () => {
+        active = false;
+      };
+    }
+
+    getUserProfile(user.uid)
+      .then((profile) => {
+        if (active && profile?.interests.length) {
+          setSelected(profile.interests);
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (active) {
+          setError(loadError instanceof Error ? loadError.message : 'Could not load preferences.');
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   function toggleInterest(id: string) {
+    setError(null);
     setSelected((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );
+  }
+
+  async function savePreferences() {
+    if (!user) {
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await updateUserProfile(user.uid, { interests: selected });
+      router.replace('/(tabs)/home');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save preferences.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -30,6 +93,8 @@ export default function PreferencesScreen() {
         <Text style={styles.title}>What do you love to explore?</Text>
         <Text style={styles.subtitle}>Pick a few interests to personalize your journey.</Text>
 
+        {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+        {isLoading ? <Text style={styles.loading}>Loading your preferences…</Text> : null}
         <View style={styles.options}>
           {interests.map((interest) => {
             const active = selected.includes(interest.id);
@@ -38,6 +103,7 @@ export default function PreferencesScreen() {
                 key={interest.id}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: active }}
+                disabled={isLoading || isSaving}
                 onPress={() => toggleInterest(interest.id)}
                 style={({ pressed }) => [
                   styles.option,
@@ -65,9 +131,12 @@ export default function PreferencesScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace('/(tabs)/home')}
+            disabled={isSaving || isLoading}
+            onPress={() => void savePreferences()}
             style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]}>
-            <Text style={styles.continueText}>Save & Explore Sri Lanka</Text>
+            <Text style={styles.continueText}>
+              {isSaving ? 'Saving…' : 'Save & Explore Sri Lanka'}
+            </Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.replace('/(tabs)/home')}>
             <Text style={styles.skip}>Skip for now</Text>
@@ -128,6 +197,17 @@ const styles = StyleSheet.create({
     color: '#777d75',
     fontSize: 12,
     lineHeight: 18,
+  },
+  error: {
+    marginTop: 12,
+    color: '#9b4d32',
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  loading: {
+    marginTop: 14,
+    color: '#777d75',
+    fontSize: 10,
   },
   options: {
     gap: 10,

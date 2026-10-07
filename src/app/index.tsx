@@ -1,9 +1,20 @@
+import { useEffect } from 'react';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/context/AuthContext';
 import { onboardingNavigation } from '@/navigation/app-navigation';
 
 export default function WelcomePage() {
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (user && !isLoading) {
+      router.replace('/(tabs)/home');
+    }
+  }, [isLoading, user]);
+
   return (
     <View style={styles.screen}>
       <View style={styles.sky} />

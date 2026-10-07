@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,24 +12,64 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/context/AuthContext';
 import { onboardingNavigation } from '@/navigation/app-navigation';
+import { getAuthErrorMessage } from '@/services/authService';
 
 type SignInMode = 'user' | 'visitor';
 
 export default function LoginScreen() {
   const { height } = useWindowDimensions();
+  const { user, isFirebaseConfigured, authError, login, register } = useAuth();
   const [mode, setMode] = useState<SignInMode>('user');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [isBusy, setIsBusy] = useState(false);
+  const completedSignIn = useRef(false);
 
-  function handleSignIn() {
-    if (!username.trim() || !password) {
-      setMessage('Enter your username and password to continue.');
+  useEffect(() => {
+    if (user && !isBusy && !completedSignIn.current) {
+      onboardingNavigation.finish();
+    }
+  }, [isBusy, user]);
+
+  async function handleSignIn() {
+    if (mode === 'visitor') {
+      onboardingNavigation.continueToLanguage();
       return;
     }
 
-    onboardingNavigation.continueToLanguage();
+    if (!username.trim() || !password || (isRegistering && !name.trim())) {
+      setMessage(
+        isRegistering
+          ? 'Enter your name, email and password to create an account.'
+          : 'Enter your email and password to continue.',
+      );
+      return;
+    }
+    if (!isFirebaseConfigured) {
+      setMessage('Firebase is not configured. Add the project settings to .env and restart Expo.');
+      return;
+    }
+
+    setIsBusy(true);
+    setMessage('');
+    try {
+      if (isRegistering) {
+        await register(name, username, password);
+      } else {
+        await login(username, password);
+      }
+      completedSignIn.current = true;
+      onboardingNavigation.continueToLanguage();
+    } catch (authError) {
+      setMessage(getAuthErrorMessage(authError));
+    } finally {
+      setIsBusy(false);
+    }
   }
 
   return (
@@ -77,6 +117,7 @@ export default function LoginScreen() {
                 selected={mode === 'user'}
                 onPress={() => {
                   setMode('user');
+                  setIsRegistering(false);
                   setMessage('');
                 }}
               />
@@ -85,63 +126,122 @@ export default function LoginScreen() {
                 selected={mode === 'visitor'}
                 onPress={() => {
                   setMode('visitor');
+                  setIsRegistering(false);
                   setMessage('');
                 }}
               />
             </View>
 
             <View style={[styles.form, { marginTop: Math.max(height * 0.05, 28) }]}>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                accessibilityLabel="Username"
-                autoCapitalize="none"
-                autoCorrect={false}
-                onChangeText={(value) => {
-                  setUsername(value);
-                  setMessage('');
-                }}
-                placeholder="Enter your username"
-                placeholderTextColor="#aaa69e"
-                returnKeyType="next"
-                style={styles.input}
-                textContentType="username"
-                value={username}
-              />
+              {mode === 'visitor' ? (
+                <Text style={styles.visitorMessage}>
+                  Continue as a visitor to explore public attractions. Sign in to save places or
+                  manage your profile.
+                </Text>
+              ) : (
+                <>
+                  {isRegistering ? (
+                    <>
+                      <Text style={styles.label}>Name</Text>
+                      <TextInput
+                        accessibilityLabel="Name"
+                        autoCapitalize="words"
+                        onChangeText={(value) => {
+                          setName(value);
+                          setMessage('');
+                        }}
+                        placeholder="Enter your name"
+                        placeholderTextColor="#aaa69e"
+                        returnKeyType="next"
+                        style={styles.input}
+                        textContentType="name"
+                        value={name}
+                      />
+                    </>
+                  ) : null}
 
-              <Text style={[styles.label, styles.passwordLabel]}>Password</Text>
-              <TextInput
-                accessibilityLabel="Password"
-                autoCapitalize="none"
-                onChangeText={(value) => {
-                  setPassword(value);
-                  setMessage('');
-                }}
-                onSubmitEditing={handleSignIn}
-                placeholder="••••••••"
-                placeholderTextColor="#aaa69e"
-                returnKeyType="go"
-                secureTextEntry
-                style={styles.input}
-                textContentType="password"
-                value={password}
-              />
+                  <Text style={[styles.label, isRegistering && styles.passwordLabel]}>Email</Text>
+                  <TextInput
+                    accessibilityLabel="Email"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    onChangeText={(value) => {
+                      setUsername(value);
+                      setMessage('');
+                    }}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#aaa69e"
+                    returnKeyType="next"
+                    style={styles.input}
+                    textContentType="emailAddress"
+                    value={username}
+                  />
 
-              {message ? (
+                  <Text style={[styles.label, styles.passwordLabel]}>Password</Text>
+                  <TextInput
+                    accessibilityLabel="Password"
+                    autoCapitalize="none"
+                    onChangeText={(value) => {
+                      setPassword(value);
+                      setMessage('');
+                    }}
+                    onSubmitEditing={() => void handleSignIn()}
+                    placeholder="••••••••"
+                    placeholderTextColor="#aaa69e"
+                    returnKeyType="go"
+                    secureTextEntry
+                    style={styles.input}
+                    textContentType={isRegistering ? 'newPassword' : 'password'}
+                    value={password}
+                  />
+                </>
+              )}
+
+              {message || authError ? (
                 <Text accessibilityLiveRegion="polite" style={styles.message}>
-                  {message}
+                  {message ?? authError}
                 </Text>
               ) : null}
 
               <Pressable
                 accessibilityRole="button"
-                onPress={handleSignIn}
+                accessibilityState={{ disabled: isBusy }}
+                disabled={isBusy}
+                onPress={() => void handleSignIn()}
                 style={({ pressed }) => [
                   styles.submitButton,
                   { marginTop: 'auto' },
-                  pressed && styles.pressed,
+                  pressed && !isBusy && styles.pressed,
+                  isBusy && styles.disabled,
                 ]}>
-                <Text style={styles.submitText}>Sign in Securely</Text>
+                <Text style={styles.submitText}>
+                  {mode === 'visitor'
+                    ? 'Continue as a Visitor'
+                    : isBusy
+                      ? isRegistering
+                        ? 'Creating account…'
+                        : 'Signing in…'
+                      : isRegistering
+                        ? 'Create Account'
+                        : 'Sign in Securely'}
+                </Text>
               </Pressable>
+
+              {mode === 'user' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isBusy}
+                  onPress={() => {
+                    setIsRegistering((current) => !current);
+                    setMessage('');
+                  }}
+                  style={styles.switchMode}>
+                  <Text style={styles.switchModeText}>
+                    {isRegistering ? 'Already have an account? Sign in' : 'New here? Create account'}
+                  </Text>
+                </Pressable>
+              ) : null}
 
               <Text style={styles.footer}>
                 Your journey through Sri Lanka starts here.
@@ -275,6 +375,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
   },
+  visitorMessage: {
+    marginTop: 4,
+    color: '#777267',
+    fontSize: 11,
+    lineHeight: 17,
+  },
   submitButton: {
     minHeight: 42,
     alignItems: 'center',
@@ -282,12 +388,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#b75f3e',
   },
+  disabled: {
+    opacity: 0.65,
+  },
   pressed: {
     opacity: 0.82,
   },
   submitText: {
     color: '#ffffff',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  switchMode: {
+    alignItems: 'center',
+    paddingVertical: 9,
+  },
+  switchModeText: {
+    color: '#285944',
+    fontSize: 10,
     fontWeight: '600',
   },
   footer: {

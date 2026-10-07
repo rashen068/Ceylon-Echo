@@ -10,17 +10,19 @@ A mobile application built with React Native that provides location-aware audio 
 
 ## Firebase Setup
 
-The admin screens use Firebase Authentication, Cloud Firestore, and Cloud Storage. The previous in-memory sample attractions are not migrated; the dashboard starts empty and new sites are saved in Firestore.
+The app uses Firebase Authentication, Cloud Firestore, and Cloud Storage. User-facing attraction lists read the existing `attractions` collection, which is managed in the admin screens; there is no separate tours collection in this heritage/audio-guide app.
 
 1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/).
-2. In **Project settings**, register a **Web app** and copy its Firebase config values into a local `.env.local` file using [.env.example](./.env.example) as a template. These `EXPO_PUBLIC_` values are client configuration, not server credentials. Never put a service-account key in the app.
-3. In **Authentication → Sign-in method**, enable **Email/Password**, then create the admin user in **Authentication → Users**.
-4. Create a **Cloud Firestore** database and a **Cloud Storage** bucket in the Firebase console.
-5. Publish this repository's `firestore.rules` and `storage.rules` to the Firebase project. Install/use the Firebase CLI, sign in with `npx firebase-tools login`, select the project with `npx firebase-tools use --add`, then run `npx firebase-tools deploy --only firestore:rules,storage`. The CLI may ask you to enable Cloud Storage access to Firestore for the admin-role check.
-6. In Firestore, create a collection named `admins`. Create a document whose document ID is the admin user's Firebase Authentication UID, with a string field `role` set to `admin`. This role document can only be created by a trusted project owner in the Firebase console; the client cannot grant itself admin access.
-7. Restart Expo after creating `.env.local`: `npx expo start`. Open `/admin` and sign in with the Firebase admin user's email and password.
+2. In **Project settings → General**, register a **Web app**. Copy its Firebase web configuration values into the ignored local `.env` file (or `.env.local`) using [.env.example](./.env.example) as a template. Restart Expo after changing environment variables.
+3. In **Authentication → Sign-in method**, enable **Email/Password**. Account registration and sign-in are provided by the existing login screen; visitor mode can browse public attractions without an account.
+4. Create a **Cloud Firestore** database and a **Cloud Storage** bucket.
+5. Publish `firestore.rules` and `storage.rules` from this repository in Firebase Console under **Firestore Database → Rules** and **Storage → Rules**, or deploy them with the Firebase CLI (`npx firebase-tools login`, then `npx firebase-tools deploy --only firestore:rules,storage`). The Storage rules use Firestore to verify admin roles and may prompt you to enable that integration.
+6. To create an admin account, register it through the app, then create `admins/{firebase-auth-uid}` in Firestore with a string field `role: "admin"`. Only a trusted project owner should create this role document; the client cannot grant itself admin access.
+7. Start the app with `npm start`. Open `/admin` to curate attraction records and upload photo/audio files.
 
-Firestore site records are stored in `attractions`; media is uploaded to `attractions/{id}/photos/` or `attractions/{id}/audio/`. The supplied rules make attraction/media reads public for the heritage guide, but restrict writes and deletes to users with an admin role document. Review and publish the rules before using a production Firebase project.
+The app creates user profiles at `users/{uid}` and saved attractions at `users/{uid}/savedAttractions/{attractionId}`. Attraction records remain in `attractions`; uploaded media stays in Storage under `attractions/{id}/photos/` or `attractions/{id}/audio/`, with the download URL stored in the attraction document. Audio-guide buttons open the Firebase Storage URL externally; offline caching is not implemented. Booking and review collections have authenticated, owner-checked Firestore rules, but this project currently has no booking or review screens/forms to connect.
+
+The `EXPO_PUBLIC_FIREBASE_*` values are Firebase web-app identifiers intended to be included in a client bundle; Firebase API keys are not authorization secrets. Firestore and Storage security rules enforce access. Never put a Firebase Admin SDK service-account JSON, private key, or other server credential in an Expo app or any `EXPO_PUBLIC_*` variable.
 
 ## APK Download
 [Paste your Google Drive link here after building the APK]

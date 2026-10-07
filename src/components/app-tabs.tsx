@@ -1,4 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -26,6 +27,11 @@ export default function AppTabs() {
           src={require('@/assets/images/tabIcons/explore.png')}
           renderingMode="template"
         />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="downloads">
+        <NativeTabs.Trigger.Label>Downloads</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={<Feather name="download" size={22} />} />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

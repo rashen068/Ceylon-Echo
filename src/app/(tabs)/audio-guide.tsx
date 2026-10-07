@@ -1,71 +1,76 @@
+import * as Linking from 'expo-linking';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { LandscapeArt, ScreenFrame, SectionHeading, TravelColors } from '@/components/travel-ui';
+import { DataMessage } from '@/components/data-message';
+import { LandscapeArt, ScreenFrame, TravelColors } from '@/components/travel-ui';
+import { useAttractions } from '@/hooks/use-attractions';
 
 export default function AudioGuideScreen() {
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(28);
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { attractions, isLoading, error } = useAttractions();
+  const attraction = id
+    ? attractions.find((item) => item.id === id)
+    : attractions.find((item) => item.audioGuide !== null);
+  const [isOpening, setIsOpening] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  function seekForward() {
-    setProgress((value) => Math.min(value + 8, 100));
+  async function openAudioGuide() {
+    if (!attraction?.audioGuide) {
+      return;
+    }
+
+    setIsOpening(true);
+    setMessage(null);
+    try {
+      await Linking.openURL(attraction.audioGuide.url);
+      setMessage('The audio guide URL was opened. Playback depends on your browser or audio app.');
+    } catch (openError) {
+      setMessage(
+        openError instanceof Error ? openError.message : 'Could not open this audio guide.',
+      );
+    } finally {
+      setIsOpening(false);
+    }
   }
 
   return (
-    <ScreenFrame title="Now Playing" subtitle="A local story from the Cultural Triangle">
-      <LandscapeArt tone="forest" style={styles.cover} />
-      <Text style={styles.guideTitle}>Sigiriya Audio Guide</Text>
-      <Text style={styles.chapter}>Chapter 1 · The Lion Rock</Text>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress}%` }]} />
-      </View>
-      <View style={styles.timeRow}>
-        <Text style={styles.time}>{Math.floor((progress / 100) * 720 / 60)}:{String(Math.floor(((progress / 100) * 720) % 60)).padStart(2, '0')}</Text>
-        <Text style={styles.time}>12:00</Text>
-      </View>
-      <View style={styles.playerControls}>
-        <Pressable accessibilityRole="button" onPress={() => setProgress(0)} style={styles.skipButton}>
-          <Text style={styles.controlText}>↶</Text>
-          <Text style={styles.skipLabel}>15</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={playing ? 'Pause audio guide' : 'Play audio guide'}
-          onPress={() => setPlaying((value) => !value)}
-          style={styles.playButton}>
-          <Text style={styles.playIcon}>{playing ? 'Ⅱ' : '▶'}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={seekForward} style={styles.skipButton}>
-          <Text style={styles.controlText}>↷</Text>
-          <Text style={styles.skipLabel}>15</Text>
-        </Pressable>
-      </View>
-      <Text style={styles.status}>{playing ? 'Playing your audio guide' : 'Ready when you are'}</Text>
-      <SectionHeading title="In this guide" />
-      <Chapter number="01" title="The Lion Rock" duration="12 min" active />
-      <Chapter number="02" title="The Water Gardens" duration="8 min" />
-      <Chapter number="03" title="Frescoes & Mirror Wall" duration="10 min" />
+    <ScreenFrame
+      title="Audio Guide"
+      subtitle={attraction?.name ?? 'Listen to a story from Sri Lanka'}>
+      <LandscapeArt
+        tone="forest"
+        label={attraction ? `${attraction.name} audio guide` : 'Audio guide illustration'}
+        style={styles.cover}
+      />
+      {isLoading ? <DataMessage isLoading message="Loading audio guides…" /> : null}
+      {error ? <DataMessage isError message={error} /> : null}
+      {!isLoading && !error && !attraction?.audioGuide ? (
+        <DataMessage message="No audio guide has been uploaded for this attraction yet." />
+      ) : null}
+      {attraction?.audioGuide ? (
+        <>
+          <Text style={styles.guideTitle}>{attraction.name}</Text>
+          <Text style={styles.fileName}>{attraction.audioGuide.name}</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isOpening}
+            onPress={() => void openAudioGuide()}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && !isOpening && styles.pressed,
+              isOpening && styles.disabled,
+            ]}>
+            <Text style={styles.playIcon}>{isOpening ? '…' : '▶'}</Text>
+          </Pressable>
+          <Text style={styles.status}>
+            {message ?? (isOpening ? 'Opening audio guide…' : 'Ready when you are')}
+          </Text>
+        </>
+      ) : null}
+      {message && !attraction?.audioGuide ? <DataMessage isError message={message} /> : null}
     </ScreenFrame>
-  );
-}
-
-function Chapter({
-  number,
-  title,
-  duration,
-  active = false,
-}: {
-  number: string;
-  title: string;
-  duration: string;
-  active?: boolean;
-}) {
-  return (
-    <View style={[styles.chapterRow, active && styles.chapterActive]}>
-      <Text style={styles.chapterNumber}>{number}</Text>
-      <Text style={styles.chapterRowTitle}>{title}</Text>
-      <Text style={styles.chapterDuration}>{duration}</Text>
-    </View>
   );
 }
 
@@ -79,47 +84,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
-  chapter: { marginTop: 5, color: TravelColors.muted, fontSize: 10, textAlign: 'center' },
-  progressTrack: {
-    height: 4,
-    overflow: 'hidden',
-    marginTop: 24,
-    borderRadius: 4,
-    backgroundColor: '#e6e5de',
+  fileName: {
+    marginTop: 5,
+    color: TravelColors.muted,
+    fontSize: 10,
+    textAlign: 'center',
   },
-  progressFill: { height: '100%', borderRadius: 4, backgroundColor: TravelColors.orange },
-  timeRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  time: { color: TravelColors.muted, fontSize: 8 },
-  playerControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 28,
-    marginTop: 14,
-  },
-  skipButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  controlText: { color: TravelColors.ink, fontSize: 19 },
-  skipLabel: { position: 'absolute', top: 13, color: TravelColors.ink, fontSize: 6 },
   playButton: {
     width: 52,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 24,
     borderRadius: 26,
     backgroundColor: TravelColors.green,
   },
   playIcon: { color: '#ffffff', fontSize: 18 },
   status: { marginTop: 9, color: TravelColors.orange, fontSize: 9, textAlign: 'center' },
-  chapterRow: {
-    minHeight: 43,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#efeee8',
-    gap: 10,
-  },
-  chapterActive: { backgroundColor: '#f1f5f1' },
-  chapterNumber: { width: 25, color: TravelColors.green, fontSize: 9, fontWeight: '700' },
-  chapterRowTitle: { flex: 1, color: TravelColors.ink, fontSize: 10, fontWeight: '600' },
-  chapterDuration: { color: TravelColors.muted, fontSize: 9 },
+  disabled: { opacity: 0.65 },
+  pressed: { opacity: 0.8 },
 });

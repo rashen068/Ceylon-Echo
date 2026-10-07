@@ -1,9 +1,20 @@
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { useAdminAuth } from '@/features/admin/admin-auth';
 import { useAdmin } from '@/features/admin/admin-context';
+import type { Attraction } from '@/features/admin/admin-context';
 import { AdminHeader, AdminScreen, adminColors } from '@/features/admin/admin-ui';
 
 export default function AttractionsListScreen() {
@@ -11,6 +22,7 @@ export default function AttractionsListScreen() {
   const { signOutAdmin } = useAdminAuth();
   const [search, setSearch] = useState('');
   const [searchByLocation, setSearchByLocation] = useState(false);
+  const [selectedAttraction, setSelectedAttraction] = useState<Attraction | null>(null);
   const filteredAttractions = useMemo(
     () =>
       attractions.filter((item) =>
@@ -51,19 +63,22 @@ export default function AttractionsListScreen() {
     ]);
   }
 
-  function showAttractionOptions(id: string, name: string) {
-    Alert.alert(name, undefined, [
-      {
-        text: 'Edit',
-        onPress: () => router.push(`/admin/attractions/${id}`),
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => confirmDeleteAttraction(id),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  function editSelectedAttraction() {
+    if (!selectedAttraction) {
+      return;
+    }
+    const attractionId = selectedAttraction.id;
+    setSelectedAttraction(null);
+    router.push(`/admin/attractions/${attractionId}`);
+  }
+
+  function deleteSelectedAttraction() {
+    if (!selectedAttraction) {
+      return;
+    }
+    const attractionId = selectedAttraction.id;
+    setSelectedAttraction(null);
+    setTimeout(() => confirmDeleteAttraction(attractionId), 250);
   }
 
   return (
@@ -111,7 +126,7 @@ export default function AttractionsListScreen() {
             <Pressable
               accessibilityLabel={`Options for ${item.name}`}
               accessibilityRole="button"
-              onPress={() => showAttractionOptions(item.id, item.name)}
+              onPress={() => setSelectedAttraction(item)}
               style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
               <Text style={[styles.moreIcon, index === 0 && styles.featuredText]}>⋮</Text>
             </Pressable>
@@ -130,6 +145,49 @@ export default function AttractionsListScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setSelectedAttraction(null)}
+        statusBarTranslucent
+        transparent
+        visible={selectedAttraction !== null}>
+        <View style={styles.modalOverlay}>
+          <Pressable
+            accessibilityLabel="Close attraction options"
+            accessibilityRole="button"
+            onPress={() => setSelectedAttraction(null)}
+            style={StyleSheet.absoluteFill}
+          />
+          <View accessibilityViewIsModal style={styles.optionsDialog}>
+            <View style={styles.modalHeader}>
+              <Text numberOfLines={2} style={styles.modalTitle}>
+                {selectedAttraction?.name}
+              </Text>
+              <Pressable
+                accessibilityLabel="Cancel"
+                accessibilityRole="button"
+                onPress={() => setSelectedAttraction(null)}
+                style={styles.cancelButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={editSelectedAttraction}
+              style={({ pressed }) => [styles.optionRow, pressed && styles.optionPressed]}>
+              <Feather color={adminColors.green} name="edit-2" size={19} />
+              <Text style={styles.editOptionText}>Edit Attraction</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={deleteSelectedAttraction}
+              style={({ pressed }) => [styles.optionRow, pressed && styles.optionPressed]}>
+              <Feather color={adminColors.rust} name="trash-2" size={19} />
+              <Text style={styles.deleteOptionText}>Delete Attraction</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </AdminScreen>
   );
 }
@@ -227,6 +285,73 @@ const styles = StyleSheet.create({
   moreIcon: {
     color: adminColors.text,
     fontSize: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16, 22, 20, 0.56)',
+  },
+  optionsDialog: {
+    width: '100%',
+    maxWidth: 420,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderRadius: 16,
+    backgroundColor: adminColors.surface,
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+  },
+  modalHeader: {
+    minHeight: 42,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalTitle: {
+    flex: 1,
+    color: adminColors.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  cancelButton: {
+    minHeight: 40,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    color: adminColors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  optionRow: {
+    minHeight: 54,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: adminColors.line,
+  },
+  editOptionText: {
+    color: adminColors.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  deleteOptionText: {
+    color: adminColors.rust,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  optionPressed: {
+    opacity: 0.65,
   },
   message: {
     paddingVertical: 20,

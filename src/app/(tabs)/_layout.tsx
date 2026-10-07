@@ -1,5 +1,9 @@
-import AppTabs from '@/components/app-tabs';
+import { Stack } from 'expo-router';
+
+export const unstable_settings = {
+  anchor: 'home',
+};
 
 export default function TabLayout() {
-  return <AppTabs />;
+  return <Stack screenOptions={{ headerShown: false }} />;
 }

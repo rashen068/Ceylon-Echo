@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { onboardingNavigation } from '@/navigation/app-navigation';
+
 type SignInMode = 'user' | 'visitor';
 
 export default function LoginScreen() {
@@ -27,7 +29,7 @@ export default function LoginScreen() {
       return;
     }
 
-    setMessage('Sign-in is not connected yet.');
+    onboardingNavigation.continueToLanguage();
   }
 
   return (
@@ -38,19 +40,19 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: Math.max(height * 0.055, 36) },
+            { paddingTop: Math.max(height * 0.07, 44) },
           ]}
           keyboardShouldPersistTaps="handled">
           <View style={styles.content}>
             <Text
               style={[
                 styles.title,
-                { marginBottom: Math.max(height * 0.033, 22) },
+                { marginBottom: Math.max(height * 0.07, 30) },
               ]}>
               Access Portal
             </Text>
 
-            <View style={[styles.imageRow, { height: Math.min(height * 0.11, 112) }]}>
+            <View style={[styles.imageRow, { height: Math.min(height * 0.125, 120) }]}>
               <View
                 accessible
                 accessibilityRole="image"
@@ -65,7 +67,11 @@ export default function LoginScreen() {
               />
             </View>
 
-            <View style={styles.modeSelector}>
+            <View
+              style={[
+                styles.modeSelector,
+                { marginTop: Math.max(height * 0.018, 10) },
+              ]}>
               <ModeButton
                 label="User Sign-in"
                 selected={mode === 'user'}
@@ -84,7 +90,7 @@ export default function LoginScreen() {
               />
             </View>
 
-            <View style={{ marginTop: Math.max(height * 0.038, 26) }}>
+            <View style={[styles.form, { marginTop: Math.max(height * 0.05, 28) }]}>
               <Text style={styles.label}>Username</Text>
               <TextInput
                 accessibilityLabel="Username"
@@ -110,9 +116,10 @@ export default function LoginScreen() {
                   setPassword(value);
                   setMessage('');
                 }}
+                onSubmitEditing={handleSignIn}
                 placeholder="••••••••"
                 placeholderTextColor="#aaa69e"
-                returnKeyType="done"
+                returnKeyType="go"
                 secureTextEntry
                 style={styles.input}
                 textContentType="password"
@@ -130,7 +137,7 @@ export default function LoginScreen() {
                 onPress={handleSignIn}
                 style={({ pressed }) => [
                   styles.submitButton,
-                  { marginTop: height * 0.125 },
+                  { marginTop: 'auto' },
                   pressed && styles.pressed,
                 ]}>
                 <Text style={styles.submitText}>Sign in Securely</Text>
@@ -187,6 +194,7 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
+    flexGrow: 1,
     maxWidth: 420,
   },
   title: {
@@ -198,9 +206,9 @@ const styles = StyleSheet.create({
   },
   imageRow: {
     flexDirection: 'row',
-    gap: 5,
+    gap: 6,
     overflow: 'hidden',
-    borderRadius: 4,
+    borderRadius: 5,
   },
   photoPlaceholder: {
     flex: 1,
@@ -208,56 +216,58 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   firstPhoto: {
-    backgroundColor: '#e5e1d7',
+    backgroundColor: '#e7e3d9',
   },
   secondPhoto: {
-    backgroundColor: '#dce0d8',
+    backgroundColor: '#e2e5df',
   },
   modeSelector: {
     flexDirection: 'row',
-    gap: 5,
-    marginTop: 8,
-    padding: 3,
-    borderRadius: 8,
+    gap: 6,
+    padding: 4,
+    borderRadius: 10,
     backgroundColor: '#eee9dc',
   },
   modeButton: {
-    minHeight: 31,
+    minHeight: 38,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
-    paddingHorizontal: 6,
+    borderRadius: 8,
+    paddingHorizontal: 8,
   },
   modeButtonSelected: {
     backgroundColor: '#294e3e',
   },
   modeText: {
     color: '#777267',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500',
   },
   modeTextSelected: {
     color: '#ffffff',
   },
+  form: {
+    flexGrow: 1,
+  },
   label: {
-    marginBottom: 3,
+    marginBottom: 4,
     color: '#45433d',
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
   passwordLabel: {
-    marginTop: 8,
+    marginTop: 10,
   },
   input: {
-    minHeight: 35,
+    minHeight: 40,
     borderWidth: 1,
     borderColor: '#e4e0d8',
-    borderRadius: 6,
-    paddingHorizontal: 9,
+    borderRadius: 7,
+    paddingHorizontal: 10,
     color: '#383731',
     backgroundColor: '#ffffff',
-    fontSize: 11,
+    fontSize: 12,
   },
   message: {
     marginTop: 8,
@@ -266,10 +276,10 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   submitButton: {
-    minHeight: 38,
+    minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 7,
+    borderRadius: 8,
     backgroundColor: '#b75f3e',
   },
   pressed: {
@@ -277,7 +287,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   footer: {

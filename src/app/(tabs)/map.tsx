@@ -1,9 +1,14 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { DataMessage } from '@/components/data-message';
 import { PrimaryButton, ScreenFrame, SectionHeading, TravelColors } from '@/components/travel-ui';
+import { useAttractions } from '@/hooks/use-attractions';
 
 export default function InteractiveMapScreen() {
+  const { attractions, isLoading, error } = useAttractions();
+  const mapAttractions = attractions.slice(0, 2);
+
   return (
     <ScreenFrame title="Explore Map" subtitle="Discover remarkable places around you.">
       <View style={styles.map}>
@@ -14,8 +19,30 @@ export default function InteractiveMapScreen() {
         <View style={styles.roadDiagonal} />
         <View style={styles.roadHorizontal} />
         <View style={styles.routeLine} />
-        <MapPin title="Sigiriya" style={styles.sigiriyaPin} onPress={() => router.push('/(tabs)/attraction')} />
-        <MapPin title="Dambulla" style={styles.dambullaPin} onPress={() => router.push('/(tabs)/attraction')} />
+        {mapAttractions[0] ? (
+          <MapPin
+            title={mapAttractions[0].name}
+            style={styles.sigiriyaPin}
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/attraction',
+                params: { id: mapAttractions[0].id },
+              })
+            }
+          />
+        ) : null}
+        {mapAttractions[1] ? (
+          <MapPin
+            title={mapAttractions[1].name}
+            style={styles.dambullaPin}
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/attraction',
+                params: { id: mapAttractions[1].id },
+              })
+            }
+          />
+        ) : null}
         <View style={styles.currentLocation}>
           <View style={styles.currentDot} />
         </View>
@@ -24,26 +51,33 @@ export default function InteractiveMapScreen() {
         </View>
         <View style={styles.mapLegend}>
           <Text style={styles.legendTitle}>Cultural Triangle</Text>
-          <Text style={styles.legendSubtitle}>2 places nearby</Text>
+          <Text style={styles.legendSubtitle}>{attractions.length} attractions</Text>
         </View>
       </View>
+      {isLoading ? <DataMessage isLoading message="Loading map attractions…" /> : null}
+      {error ? <DataMessage isError message={error} /> : null}
       <SectionHeading title="Around this area" action="Nearby" onPress={() => router.push('/(tabs)/nearby')} />
-      <View style={styles.placeRow}>
-        <View style={styles.placePin}><Text style={styles.placePinText}>1</Text></View>
-        <View style={styles.placeCopy}>
-          <Text style={styles.placeTitle}>Sigiriya Ancient Fortress</Text>
-          <Text style={styles.placeDistance}>12 km · about 25 min drive</Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </View>
-      <View style={styles.placeRow}>
-        <View style={[styles.placePin, styles.placePinAlt]}><Text style={styles.placePinText}>2</Text></View>
-        <View style={styles.placeCopy}>
-          <Text style={styles.placeTitle}>Dambulla Cave Temple</Text>
-          <Text style={styles.placeDistance}>19 km · about 35 min drive</Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </View>
+      {!isLoading && !error && attractions.length === 0 ? (
+        <DataMessage message="No attractions are available to show on the map." />
+      ) : null}
+      {mapAttractions.map((item, index) => (
+        <Pressable
+          key={item.id}
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+          }
+          style={styles.placeRow}>
+          <View style={[styles.placePin, index === 1 && styles.placePinAlt]}>
+            <Text style={styles.placePinText}>{index + 1}</Text>
+          </View>
+          <View style={styles.placeCopy}>
+            <Text style={styles.placeTitle}>{item.name}</Text>
+            <Text style={styles.placeDistance}>{item.location}</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+      ))}
       <PrimaryButton title="See nearby attractions" onPress={() => router.push('/(tabs)/nearby')} style={styles.button} />
     </ScreenFrame>
   );

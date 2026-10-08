@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DataMessage } from '@/components/data-message';
 import {
   AttractionCard,
   DetailRow,
@@ -9,8 +11,21 @@ import {
   ScreenFrame,
   SectionHeading,
 } from '@/components/travel-ui';
+import { useAttractions } from '@/hooks/use-attractions';
 
 export default function HomeScreen() {
+  const { attractions, isLoading, error } = useAttractions();
+  const [search, setSearch] = useState('');
+  const filteredAttractions = useMemo(
+    () =>
+      attractions.filter((item) =>
+        `${item.name} ${item.location} ${item.category}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase()),
+      ),
+    [attractions, search],
+  );
+
   return (
     <ScreenFrame
       title="Discover Sri Lanka"
@@ -20,9 +35,11 @@ export default function HomeScreen() {
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
           accessibilityLabel="Search destinations"
+          onChangeText={setSearch}
           placeholder="Search destinations..."
           placeholderTextColor="#8b9189"
           style={styles.searchInput}
+          value={search}
         />
         <Text style={styles.filter}>☷</Text>
       </View>
@@ -47,21 +64,26 @@ export default function HomeScreen() {
         onPress={() => router.push('/(tabs)/nearby')}
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
-        <AttractionCard
-          title="Sigiriya Ancient Fortress"
-          location="Matale District"
-          tone="gold"
-          compact
-          onPress={() => router.push('/(tabs)/attraction')}
-        />
-        <AttractionCard
-          title="Dambulla Cave Temple"
-          location="Central Province"
-          tone="blue"
-          compact
-          onPress={() => router.push('/(tabs)/attraction')}
-        />
+        {filteredAttractions.slice(0, 6).map((item, index) => (
+          <AttractionCard
+            key={item.id}
+            title={item.name}
+            location={item.location}
+            category={item.category}
+            tone={index % 2 === 0 ? 'gold' : 'blue'}
+            imageUrl={item.photos[0]?.url}
+            compact
+            onPress={() =>
+              router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+            }
+          />
+        ))}
       </ScrollView>
+      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {error ? <DataMessage isError message={error} /> : null}
+      {!isLoading && !error && filteredAttractions.length === 0 ? (
+        <DataMessage message={search ? 'No attractions match your search.' : 'No attractions have been added yet.'} />
+      ) : null}
 
       <SectionHeading
         title="Suggested Routes"
@@ -80,23 +102,27 @@ export default function HomeScreen() {
         <Text style={styles.routeArrow}>See your itinerary  →</Text>
       </Pressable>
 
-      <SectionHeading
-        title="Popular with visitors"
-        action="Saved"
-        onPress={() => router.push('/(tabs)/bookmarks')}
-      />
-      <DetailRow
-        icon="◎"
-        title="Lahiru Sannayake"
-        subtitle="Explorer · 12 places saved"
-        trailing="4.9"
-      />
-      <DetailRow
-        icon="◎"
-        title="Chathuri Perera"
-        subtitle="Local guide · 8 routes"
-        trailing="4.8"
-      />
+      {filteredAttractions.length > 6 ? (
+        <>
+          <SectionHeading
+            title="More to explore"
+            action="See all"
+            onPress={() => router.push('/(tabs)/explore')}
+          />
+          {filteredAttractions.slice(6, 8).map((item) => (
+            <DetailRow
+              key={item.id}
+              icon="⌑"
+              title={item.name}
+              subtitle={`${item.location} · ${item.category}`}
+              trailing="›"
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+              }
+            />
+          ))}
+        </>
+      ) : null}
     </ScreenFrame>
   );
 }

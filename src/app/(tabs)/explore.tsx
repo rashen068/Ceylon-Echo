@@ -1,261 +1,223 @@
-import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { DataMessage } from '@/components/data-message';
 import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  AttractionCard,
+  ScreenFrame,
+  SectionHeading,
+  TravelColors,
+} from '@/components/travel-ui';
+import { useAttractions } from '@/hooks/use-attractions';
 
-import { requireFirestore } from '@/lib/firebase';
-
-type AttractionCard = {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  imageUrl: string | null;
-};
-
-const colors = {
-  background: '#F8F6F1',
-  white: '#FFFFFF',
-  ink: '#1F2937',
-  muted: '#7C838A',
-  line: '#EAE5DD',
-  rust: '#B85E3B',
-  green: '#315443',
-};
+const filters = ['All', 'Heritage', 'Nature', 'Beaches'];
 
 export default function ExploreScreen() {
-  const [attractions, setAttractions] = useState<AttractionCard[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-
-      async function loadAttractions() {
-        setIsLoading(true);
-        setErrorMessage(null);
-        try {
-          const snapshot = await getDocs(
-            query(collection(requireFirestore(), 'attractions'), orderBy('name', 'asc')),
-          );
-          if (isActive) {
-            setAttractions(
-              snapshot.docs.map((item) => {
-                const data = item.data();
-                const photo = Array.isArray(data.photos)
-                  ? data.photos.find(isMediaWithUrl)
-                  : undefined;
-                return {
-                  id: item.id,
-                  name: getText(data.name) || 'Untitled attraction',
-                  category: getText(data.category) || 'Heritage Site',
-                  location: getText(data.location) || 'Location not provided',
-                  imageUrl: photo?.url ?? (getText(data.imageUrl) || null),
-                };
-              }),
-            );
-          }
-        } catch (loadError) {
-          if (isActive) {
-            setErrorMessage(
-              loadError instanceof Error
-                ? loadError.message
-                : 'Could not load attractions. Please try again.',
-            );
-          }
-        } finally {
-          if (isActive) {
-            setIsLoading(false);
-          }
-        }
-      }
-
-      void loadAttractions();
-      return () => {
-        isActive = false;
-      };
-    }, []),
+  const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
+  const { attractions, isLoading, error } = useAttractions();
+  const filteredAttractions = useMemo(
+    () =>
+      attractions.filter((item) => {
+        const matchesSearch = `${item.name} ${item.location} ${item.category}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase());
+        return (
+          matchesSearch &&
+          (filter === 'All' || item.category.toLowerCase().includes(filter.toLowerCase()))
+        );
+      }),
+    [attractions, filter, search],
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <FlatList
-        contentContainerStyle={styles.content}
-        data={attractions}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
-          <View style={styles.state}>
-            {isLoading ? (
-              <ActivityIndicator color={colors.green} />
-            ) : (
-              <Feather
-                color={errorMessage ? colors.rust : colors.muted}
-                name={errorMessage ? 'alert-circle' : 'map'}
-                size={25}
-              />
-            )}
-            <Text style={styles.stateText}>
-              {isLoading ? 'Loading attractions...' : errorMessage || 'No attractions available yet.'}
-            </Text>
-          </View>
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.eyebrow}>LANKA HERITAGE</Text>
-            <Text style={styles.title}>Explore attractions</Text>
-            <Text style={styles.subtitle}>Discover places and stories across Sri Lanka.</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityLabel={`View ${item.name}`}
-            accessibilityRole="button"
-            onPress={() => router.push(`/attraction/${item.id}`)}
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-            {item.imageUrl ? (
-              <Image contentFit="cover" source={{ uri: item.imageUrl }} style={styles.image} />
-            ) : (
-              <View style={[styles.image, styles.imagePlaceholder]}>
-                <Feather color={colors.green} name="map" size={22} />
-              </View>
-            )}
-            <View style={styles.cardCopy}>
-              <Text numberOfLines={1} style={styles.category}>
-                {item.category}
-              </Text>
-              <Text numberOfLines={1} style={styles.name}>
-                {item.name}
-              </Text>
-              <View style={styles.locationRow}>
-                <Feather color={colors.muted} name="map-pin" size={12} />
-                <Text numberOfLines={1} style={styles.location}>
-                  {item.location}
-                </Text>
-              </View>
-            </View>
-            <Feather color={colors.rust} name="chevron-right" size={19} />
-          </Pressable>
-        )}
-        showsVerticalScrollIndicator={false}
+    <ScreenFrame
+      title="Explore attractions"
+      subtitle="Discover places and stories across Sri Lanka."
+      onProfile={() => router.push('/(tabs)/profile')}>
+      <Text style={styles.eyebrow}>LANKA HERITAGE</Text>
+      <View style={styles.search}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          accessibilityLabel="Search attractions"
+          onChangeText={setSearch}
+          placeholder="Search attractions..."
+          placeholderTextColor="#8b9189"
+          returnKeyType="search"
+          style={styles.searchInput}
+          value={search}
+        />
+      </View>
+
+      <SectionHeading title="Explore the map" />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open interactive map"
+        onPress={() => router.push('/(tabs)/map')}
+        style={styles.mapCard}>
+        <View style={styles.mapGrid} />
+        <View style={styles.mapRoadOne} />
+        <View style={styles.mapRoadTwo} />
+        <View style={styles.mapWater} />
+        <View style={[styles.mapPin, styles.pinOne]}>
+          <Text style={styles.pinText}>•</Text>
+        </View>
+        <View style={[styles.mapPin, styles.pinTwo]}>
+          <Text style={styles.pinText}>•</Text>
+        </View>
+        <View style={styles.mapAction}>
+          <Text style={styles.mapActionText}>Open interactive map  →</Text>
+        </View>
+      </Pressable>
+
+      <SectionHeading
+        title="Nearby attractions"
+        action="See all"
+        onPress={() => router.push('/(tabs)/nearby')}
       />
-    </SafeAreaView>
-  );
-}
-
-function getText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function isMediaWithUrl(value: unknown): value is { url: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'url' in value &&
-    typeof value.url === 'string'
+      <View style={styles.filterRow}>
+        {filters.map((item) => {
+          const active = filter === item;
+          return (
+            <Pressable
+              key={item}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => setFilter(item)}
+              style={[styles.filter, active && styles.filterActive]}>
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>{item}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {error ? <DataMessage isError message={error} /> : null}
+      {!isLoading && !error && filteredAttractions.length === 0 ? (
+        <DataMessage
+          message={
+            search || filter !== 'All'
+              ? 'No attractions match your search and filters.'
+              : 'No attractions are available yet.'
+          }
+        />
+      ) : null}
+      <View style={styles.cardList}>
+        {filteredAttractions.map((item, index) => (
+          <AttractionCard
+            key={item.id}
+            title={item.name}
+            location={item.location}
+            category={item.category}
+            tone={index % 3 === 0 ? 'gold' : index % 3 === 1 ? 'blue' : 'forest'}
+            imageUrl={item.photos[0]?.url}
+            onPress={() =>
+              router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+            }
+          />
+        ))}
+      </View>
+    </ScreenFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 24,
-    gap: 10,
-  },
-  header: {
-    paddingTop: 5,
-    paddingBottom: 8,
-  },
   eyebrow: {
-    color: colors.rust,
-    fontSize: 10,
+    marginTop: 3,
+    color: TravelColors.orange,
+    fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
   },
-  title: {
-    marginTop: 5,
-    color: colors.ink,
-    fontSize: 23,
-    fontWeight: '800',
-  },
-  subtitle: {
-    marginTop: 6,
-    color: colors.muted,
-    fontSize: 12,
-  },
-  card: {
-    minHeight: 82,
-    padding: 9,
+  search: {
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: 8,
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 12,
-    backgroundColor: colors.white,
+    borderColor: TravelColors.border,
+    borderRadius: 11,
+    paddingHorizontal: 10,
+    backgroundColor: '#ffffff',
   },
-  image: {
-    width: 62,
-    height: 62,
-    borderRadius: 8,
-    backgroundColor: colors.line,
+  searchIcon: { color: '#617167', fontSize: 20 },
+  searchInput: { flex: 1, color: TravelColors.ink, fontSize: 11 },
+  mapCard: {
+    height: 165,
+    overflow: 'hidden',
+    position: 'relative',
+    borderRadius: 13,
+    backgroundColor: '#e3ece6',
   },
-  imagePlaceholder: {
+  mapGrid: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.4,
+    backgroundColor: '#d9e4dc',
+  },
+  mapRoadOne: {
+    position: 'absolute',
+    top: -55,
+    left: '48%',
+    width: 17,
+    height: 280,
+    borderRadius: 20,
+    backgroundColor: '#fbfaf5',
+    transform: [{ rotate: '31deg' }],
+  },
+  mapRoadTwo: {
+    position: 'absolute',
+    top: '42%',
+    left: -20,
+    width: '120%',
+    height: 13,
+    borderRadius: 20,
+    backgroundColor: '#fbfaf5',
+    transform: [{ rotate: '-8deg' }],
+  },
+  mapWater: {
+    position: 'absolute',
+    top: -10,
+    right: -26,
+    width: 105,
+    height: 105,
+    borderRadius: 55,
+    backgroundColor: '#c3d9d6',
+  },
+  mapPin: {
+    position: 'absolute',
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    borderRadius: 14,
+    backgroundColor: TravelColors.orange,
   },
-  cardCopy: {
-    flex: 1,
-    gap: 4,
+  pinOne: { left: '35%', top: '34%' },
+  pinTwo: { right: '28%', bottom: '30%', backgroundColor: TravelColors.green },
+  pinText: { color: '#ffffff', fontSize: 14, lineHeight: 16 },
+  mapAction: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#ffffff',
   },
-  category: {
-    color: colors.rust,
-    fontSize: 9,
-    fontWeight: '700',
+  mapActionText: { color: TravelColors.green, fontSize: 10, fontWeight: '700' },
+  filterRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
+  filter: {
+    borderWidth: 1,
+    borderColor: TravelColors.border,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#ffffff',
   },
-  name: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  location: {
-    flex: 1,
-    color: colors.muted,
-    fontSize: 10,
-  },
-  state: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: 10,
-  },
-  stateText: {
-    color: colors.muted,
-    textAlign: 'center',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
+  filterActive: { borderColor: TravelColors.green, backgroundColor: TravelColors.green },
+  filterText: { color: TravelColors.muted, fontSize: 9, fontWeight: '600' },
+  filterTextActive: { color: '#ffffff' },
+  cardList: { gap: 10 },
 });

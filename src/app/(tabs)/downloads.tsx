@@ -29,6 +29,7 @@ type Guide = {
   category: string;
   imageUrl: string | null;
   audioUrl: string;
+  isAvailableOnline: boolean;
 };
 
 const colors = {
@@ -87,6 +88,7 @@ export default function DownloadsScreen() {
           category: getText(data.category) || 'Audio guide',
           imageUrl: firstPhoto?.url ?? null,
           audioUrl: media.url,
+          isAvailableOnline: true,
         }];
       });
 
@@ -147,9 +149,7 @@ export default function DownloadsScreen() {
           refreshError instanceof Error ? refreshError.message : 'unknown error'
         }`;
       }
-      setErrorMessage(
-        message,
-      );
+      setErrorMessage(message);
     } finally {
       setBusyGuideId(null);
     }
@@ -172,16 +172,27 @@ export default function DownloadsScreen() {
     }
   }
 
+  const availableGuideCount = guides.filter((guide) => guide.isAvailableOnline).length;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Offline Audio Guides</Text>
+        <Text style={styles.headerTitle}>Audio Guides</Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Available Audio Guides</Text>
+        <View style={styles.storageCard}>
+          <View style={styles.storageHeader}>
+            <Text style={styles.storageTitle}>Available from Firebase Storage</Text>
+            <Text style={styles.storageSize}>{availableGuideCount} guides</Text>
+          </View>
+          <Text style={styles.storageNote}>
+            Listen online or download guides to play them offline.
+          </Text>
+        </View>
+        <Text style={styles.sectionTitle}>Available guides</Text>
         {isLoading ? (
           <View style={styles.state}>
             <ActivityIndicator color={colors.green} />
@@ -203,6 +214,7 @@ export default function DownloadsScreen() {
             {guides.map((guide) => {
               const savedGuide = offlineGuides.find((item) => item.id === guide.id);
               const isBusy = busyGuideId === guide.id;
+              const isAvailableOnline = guide.isAvailableOnline;
               return (
                 <View key={guide.id} style={styles.guideCard}>
                   {guide.imageUrl ? (
@@ -220,9 +232,25 @@ export default function DownloadsScreen() {
                     <Text numberOfLines={1} style={styles.guideTitle}>
                       {guide.title}
                     </Text>
+                    <Text numberOfLines={1} style={styles.category}>
+                      {guide.category}
+                    </Text>
                     <Text style={styles.fileSize}>
                       {savedGuide ? formatFileSize(savedGuide.sizeBytes) : 'Available to download'}
                     </Text>
+                    {isAvailableOnline && (
+                      <Pressable
+                        accessibilityLabel={`Listen to ${guide.title} online`}
+                        accessibilityRole="button"
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(tabs)/audio-guide',
+                            params: { id: guide.id },
+                          })
+                        }>
+                        <Text style={styles.onlineLink}>Listen online</Text>
+                      </Pressable>
+                    )}
                     {savedGuide && (
                       <Pressable
                         accessibilityRole="button"
@@ -280,6 +308,7 @@ function toGuide(guide: OfflineGuide): Guide {
     category: guide.category,
     imageUrl: guide.imageUrl,
     audioUrl: guide.audioUrl,
+    isAvailableOnline: false,
   };
 }
 
@@ -316,6 +345,33 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 24,
     gap: 10,
+  },
+  storageCard: {
+    borderRadius: 13,
+    padding: 14,
+    backgroundColor: colors.greenLight,
+  },
+  storageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  storageTitle: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  storageSize: {
+    color: colors.green,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  storageNote: {
+    marginTop: 7,
+    color: colors.muted,
+    fontSize: 9,
+    lineHeight: 14,
   },
   sectionTitle: {
     marginBottom: 1,
@@ -356,9 +412,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  category: {
+    color: colors.muted,
+    fontSize: 9,
+  },
   fileSize: {
     color: colors.muted,
     fontSize: 9,
+  },
+  onlineLink: {
+    color: colors.green,
+    fontSize: 9,
+    fontWeight: '700',
   },
   removeText: {
     color: colors.rust,

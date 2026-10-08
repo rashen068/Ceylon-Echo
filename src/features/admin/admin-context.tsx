@@ -14,27 +14,9 @@ import { deleteObject, ref } from 'firebase/storage';
 import type { ReactNode } from 'react';
 
 import { requireFirestore, requireStorage } from '@/lib/firebase';
+import type { Attraction, UploadedMedia } from '@/services/attractionService';
 
-export type UploadedMedia = {
-  name: string;
-  path: string;
-  url: string;
-  contentType: string;
-};
-
-export type Attraction = {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  location: string;
-  durationMinutes: number | null;
-  chapterCount: number | null;
-  latitude: number | null;
-  longitude: number | null;
-  photos: UploadedMedia[];
-  audioGuide: UploadedMedia | null;
-};
+export type { Attraction, UploadedMedia } from '@/services/attractionService';
 
 export type AttractionInput = Omit<Attraction, 'id'>;
 

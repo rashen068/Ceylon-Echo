@@ -5,11 +5,14 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  LayoutAnimation,
   Pressable,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -75,11 +78,19 @@ export default function AttractionDetailScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [attraction, setAttraction] = useState<AttractionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  function toggleDescription() {
+    if (Platform.OS === 'android') {
+      UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsExpanded((expanded) => !expanded);
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -224,13 +235,9 @@ export default function AttractionDetailScreen() {
             <Feather color={colors.muted} name="map-pin" size={14} />
             <Text style={styles.locationText}>{attraction.location}</Text>
           </View>
-          <Text style={styles.description}>{attraction.description}</Text>
-          {showMoreDetails && (
-            <Text style={styles.description}>
-              This guide includes {attraction.chapterCount.toLowerCase()} and takes about{' '}
-              {attraction.duration.toLowerCase()}.
-            </Text>
-          )}
+          <Text numberOfLines={isExpanded ? undefined : 3} style={styles.description}>
+            {attraction.description}
+          </Text>
 
           <View style={styles.infoRow}>
             <View style={styles.infoCard}>
@@ -273,15 +280,16 @@ export default function AttractionDetailScreen() {
           <View style={styles.secondaryRow}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setShowMoreDetails((visible) => !visible)}
+              accessibilityState={{ expanded: isExpanded }}
+              onPress={toggleDescription}
               style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
               <Feather
                 color={colors.ink}
-                name={showMoreDetails ? 'minus-circle' : 'info'}
+                name={isExpanded ? 'minus-circle' : 'info'}
                 size={15}
               />
               <Text style={styles.secondaryButtonText}>
-                {showMoreDetails ? 'Less Details' : 'More Details'}
+                {isExpanded ? 'Less Details' : 'More Details'}
               </Text>
             </Pressable>
             <Pressable

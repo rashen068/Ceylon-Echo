@@ -51,9 +51,6 @@ export default function LoginScreen() {
   const emailInput = useRef<TextInput>(null);
   const passwordInput = useRef<TextInput>(null);
   const completedSignIn = useRef(false);
-  const secretTapCount = useRef(0);
-  const secretTapStartedAt = useRef<number | null>(null);
-  const secretTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleMessage = message || roleError || authError;
 
   useEffect(() => {
@@ -74,40 +71,6 @@ export default function LoginScreen() {
       }
     }
   }, [hasSelectedLanguage, isBusy, isRoleLoading, pathname, roleError, role, user]);
-
-  useEffect(
-    () => () => {
-      if (secretTapTimeout.current) {
-        clearTimeout(secretTapTimeout.current);
-      }
-    },
-    [],
-  );
-
-  function resetSecretTap() {
-    secretTapCount.current = 0;
-    secretTapStartedAt.current = null;
-    if (secretTapTimeout.current) {
-      clearTimeout(secretTapTimeout.current);
-      secretTapTimeout.current = null;
-    }
-  }
-
-  function handleSecretTap() {
-    const now = Date.now();
-    const startedAt = secretTapStartedAt.current;
-    if (startedAt === null || now - startedAt >= 2000) {
-      resetSecretTap();
-      secretTapStartedAt.current = now;
-      secretTapTimeout.current = setTimeout(resetSecretTap, 2000);
-    }
-
-    secretTapCount.current += 1;
-    if (secretTapCount.current === 5) {
-      router.push('/admin');
-      resetSecretTap();
-    }
-  }
 
   async function continueAfterAuthentication() {
     const currentRole = await refreshUserRole();
@@ -171,26 +134,21 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('brandAdminAccessLabel')}
-              onPress={handleSecretTap}>
-              <View style={styles.brandHeader}>
-                <View style={styles.brand}>
-                  <View style={styles.brandMark}>
-                    <Text style={styles.brandMarkText}>CE</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.brandName}>CEYLON ECHO</Text>
-                    <Text style={styles.brandCaption}>{t('journeyCaption')}</Text>
-                  </View>
+            <View style={styles.brandHeader}>
+              <View style={styles.brand}>
+                <View style={styles.brandMark}>
+                  <Text style={styles.brandMarkText}>CE</Text>
                 </View>
-                <View style={styles.islandTag}>
-                  <View style={styles.islandDot} />
-                  <Text style={styles.islandTagText}>{t('sriLanka')}</Text>
+                <View>
+                  <Text style={styles.brandName}>CEYLON ECHO</Text>
+                  <Text style={styles.brandCaption}>{t('journeyCaption')}</Text>
                 </View>
               </View>
-            </Pressable>
+              <View style={styles.islandTag}>
+                <View style={styles.islandDot} />
+                <Text style={styles.islandTagText}>{t('sriLanka')}</Text>
+              </View>
+            </View>
 
             <View
               style={[

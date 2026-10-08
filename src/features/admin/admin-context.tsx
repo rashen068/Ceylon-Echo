@@ -112,7 +112,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         ].filter((media) => !retainedPaths.has(media.path));
         try {
           await Promise.all(
-            removedMedia.map((media) => deleteStoredMedia(media.path)),
+            removedMedia.map(deleteStoredMedia),
           );
         } catch (cleanupError) {
           throw new Error(
@@ -136,7 +136,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         ];
         try {
           await Promise.all(
-            media.map((file) => deleteStoredMedia(file.path)),
+            media.map(deleteStoredMedia),
           );
         } catch (cleanupError) {
           throw new Error(
@@ -184,9 +184,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
 }
 
-async function deleteStoredMedia(path: string) {
+async function deleteStoredMedia(media: UploadedMedia) {
+  if (media.provider === 'cloudinary') {
+    return;
+  }
+
   try {
-    await deleteObject(ref(requireStorage(), path));
+    await deleteObject(ref(requireStorage(), media.path));
   } catch (error) {
     if (
       typeof error === 'object' &&

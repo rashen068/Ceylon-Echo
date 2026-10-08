@@ -27,7 +27,7 @@ export default function InteractiveMapScreen() {
             style={styles.sigiriyaPin}
             onPress={() =>
               router.push({
-                pathname: '/(tabs)/attraction',
+                pathname: '/attraction/[id]',
                 params: { id: mapAttractions[0].id },
               })
             }
@@ -39,7 +39,7 @@ export default function InteractiveMapScreen() {
             style={styles.dambullaPin}
             onPress={() =>
               router.push({
-                pathname: '/(tabs)/attraction',
+                pathname: '/attraction/[id]',
                 params: { id: mapAttractions[1].id },
               })
             }
@@ -72,9 +72,7 @@ export default function InteractiveMapScreen() {
         <Pressable
           key={item.id}
           accessibilityRole="button"
-          onPress={() =>
-            router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
-          }
+          onPress={() => router.push({ pathname: '/attraction/[id]', params: { id: item.id } })}
           style={styles.placeRow}>
           <View style={[styles.placePin, index === 1 && styles.placePinAlt]}>
             <Text style={styles.placePinText}>{index + 1}</Text>

@@ -21,7 +21,6 @@ const requiredConfigKeys: (keyof FirebaseOptions)[] = [
   'apiKey',
   'authDomain',
   'projectId',
-  'storageBucket',
   'messagingSenderId',
   'appId',
 ];
@@ -57,7 +56,7 @@ function initializeFirebaseAuth(firebaseApp: NonNullable<typeof app>): Auth {
 
 export const auth = app ? initializeFirebaseAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
-export const storage = app ? getStorage(app) : null;
+export const storage = app && firebaseConfig.storageBucket ? getStorage(app) : null;
 
 function missingConfigurationError() {
   return new Error(
@@ -81,7 +80,9 @@ export function requireFirestore() {
 
 export function requireStorage() {
   if (!storage) {
-    throw missingConfigurationError();
+    throw new Error(
+      'Firebase Storage is not configured. Set EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET only if you still need to manage legacy Firebase Storage media.',
+    );
   }
   return storage;
 }

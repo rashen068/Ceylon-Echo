@@ -169,7 +169,7 @@ function AuthenticatedProfileScreen() {
           pendingPhoto.uri,
           fileName,
           contentType,
-          `users/${user.uid}/profile/profile-image`,
+          `users/${user.uid}/profile/${Date.now()}-profile-image`,
         );
         imageUrl = uploaded.url;
       }
@@ -334,7 +334,7 @@ function AuthenticatedProfileScreen() {
             subtitle={`${item.location} · ${item.category}`}
             trailing="›"
             onPress={() =>
-              router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+              router.push({ pathname: '/attraction/[id]', params: { id: item.id } })
             }
           />
         ))

@@ -220,7 +220,7 @@ function AttractionEditor({
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: Platform.OS !== 'android',
       });
       if (result.canceled) {
         return;

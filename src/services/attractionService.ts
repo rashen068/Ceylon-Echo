@@ -8,6 +8,7 @@ export type UploadedMedia = {
   path: string;
   url: string;
   contentType: string;
+  provider?: 'cloudinary';
 };
 
 export type Attraction = {
@@ -104,6 +105,7 @@ function isUploadedMedia(value: unknown): value is UploadedMedia {
     typeof media.name === 'string' &&
     typeof media.path === 'string' &&
     typeof media.url === 'string' &&
-    typeof media.contentType === 'string'
+    typeof media.contentType === 'string' &&
+    (media.provider === undefined || media.provider === 'cloudinary')
   );
 }

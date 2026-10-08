@@ -76,7 +76,7 @@ export default function HomeScreen() {
             imageUrl={item.photos[0]?.url}
             compact
             onPress={() =>
-              router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+              router.push({ pathname: '/attraction/[id]', params: { id: item.id } })
             }
           />
         ))}
@@ -119,7 +119,7 @@ export default function HomeScreen() {
               subtitle={`${item.location} · ${item.category}`}
               trailing="›"
               onPress={() =>
-                router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+                router.push({ pathname: '/attraction/[id]', params: { id: item.id } })
               }
             />
           ))}

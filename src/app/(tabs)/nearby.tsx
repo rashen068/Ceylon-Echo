@@ -68,7 +68,7 @@ export default function NearbyScreen() {
           tone={index % 3 === 0 ? 'gold' : index % 3 === 1 ? 'blue' : 'forest'}
           imageUrl={item.photos[0]?.url}
           onPress={() =>
-            router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+            router.push({ pathname: '/attraction/[id]', params: { id: item.id } })
           }
         />
       ))}

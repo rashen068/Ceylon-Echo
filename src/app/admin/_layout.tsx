@@ -44,7 +44,10 @@ function AdminRoutes() {
   }
 
   if (!user) {
-    return <Redirect href="/login" />;
+    if (isAdminContentRoute) {
+      return <Redirect href="/admin" />;
+    }
+    return <Stack screenOptions={{ headerShown: false }} />;
   }
 
   if (!isAdmin) {

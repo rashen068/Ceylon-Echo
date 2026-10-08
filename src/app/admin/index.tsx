@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { useAdminAuth } from '@/features/admin/admin-auth';
 import { AdminButton, AdminField, AdminScreen, adminColors } from '@/features/admin/admin-ui';
@@ -106,12 +106,6 @@ export default function AdminLoginScreen() {
             </>
           )}
         </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.replace('/(tabs)')}
-          style={styles.publicAppLink}>
-          <Text style={styles.publicAppLinkText}>Back to public app</Text>
-        </Pressable>
       </KeyboardAvoidingView>
     </AdminScreen>
   );
@@ -178,15 +172,5 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 1,
-  },
-  publicAppLink: {
-    alignSelf: 'center',
-    marginTop: 18,
-    padding: 10,
-  },
-  publicAppLinkText: {
-    color: adminColors.green,
-    fontSize: 13,
-    fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
@@ -21,6 +21,8 @@ export default function WelcomePage() {
   const { height } = useWindowDimensions();
   const [imageFailed, setImageFailed] = useState(false);
   const [roleRetryError, setRoleRetryError] = useState<string | null>(null);
+  const [tapCount, setTapCount] = useState(0);
+  const lastTapTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!languageReady || isLoading) return;
@@ -30,6 +32,24 @@ export default function WelcomePage() {
       router.replace(role === 'admin' ? '/admin/attractions' : '/(tabs)/home');
     }
   }, [hasSelectedLanguage, isLoading, isRoleLoading, languageReady, roleError, role, user]);
+
+  function handleTitleTap() {
+    const now = Date.now();
+    const nextTapCount =
+      lastTapTimeRef.current !== null && now - lastTapTimeRef.current <= 1500
+        ? tapCount + 1
+        : 1;
+    lastTapTimeRef.current = now;
+
+    if (nextTapCount === 5) {
+      setTapCount(0);
+      lastTapTimeRef.current = null;
+      router.push('/admin');
+      return;
+    }
+
+    setTapCount(nextTapCount);
+  }
 
   if (!languageReady) return null;
 
@@ -86,17 +106,17 @@ export default function WelcomePage() {
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <Animated.View entering={FadeIn.duration(650)} style={styles.topBar}>
-          <View style={styles.brand}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>CE</Text>
-            </View>
-            <Text style={styles.brandName}>CEYLON ECHO</Text>
-          </View>
           <Pressable
+            accessibilityLabel="Ceylon Echo"
             accessibilityRole="button"
-            onPress={onboardingNavigation.begin}
-            style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-            <Text style={styles.skipText}>{t('skip')}</Text>
+            hitSlop={20}
+            onPress={handleTitleTap}>
+            <View style={styles.brand}>
+              <View style={styles.brandMark}>
+                <Text style={styles.brandMarkText}>CE</Text>
+              </View>
+              <Text style={styles.brandName}>CEYLON ECHO</Text>
+            </View>
           </Pressable>
         </Animated.View>
 
@@ -192,20 +212,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2,
-  },
-  skipButton: {
-    minHeight: 38,
-    justifyContent: 'center',
-    paddingHorizontal: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.58)',
-    borderRadius: 20,
-    backgroundColor: 'rgba(20, 32, 27, 0.25)',
-  },
-  skipText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '600',
   },
   welcomeCopy: {
     width: '100%',

@@ -1,23 +1,33 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { DataMessage } from '@/components/data-message';
 import { AttractionCard, ScreenFrame, TravelColors } from '@/components/travel-ui';
+import { useAttractions } from '@/hooks/use-attractions';
 
 const filters = ['All', 'Heritage', 'Nature', 'Temple'];
 
 export default function NearbyScreen() {
   const [selected, setSelected] = useState('All');
+  const { attractions, isLoading, error } = useAttractions();
+  const filteredAttractions = useMemo(
+    () =>
+      attractions.filter(
+        (item) =>
+          selected === 'All' || item.category.toLowerCase().includes(selected.toLowerCase()),
+      ),
+    [attractions, selected],
+  );
 
   return (
     <ScreenFrame title="Nearby Attractions" subtitle="Wonderful places close to your location.">
       <View style={styles.location}>
         <Text style={styles.locationPin}>⌖</Text>
         <View style={styles.locationCopy}>
-          <Text style={styles.locationTitle}>Near Sigiriya, Sri Lanka</Text>
-          <Text style={styles.locationSubtitle}>Showing places within 50 km</Text>
+          <Text style={styles.locationTitle}>Across Sri Lanka</Text>
+          <Text style={styles.locationSubtitle}>Browse admin-curated attractions</Text>
         </View>
-        <Text style={styles.change}>Change</Text>
       </View>
       <View style={styles.filters}>
         {filters.map((filter) => {
@@ -34,27 +44,24 @@ export default function NearbyScreen() {
           );
         })}
       </View>
-      <AttractionCard
-        title="Sigiriya Ancient Fortress"
-        location="12 km away"
-        category="Heritage"
-        tone="gold"
-        onPress={() => router.push('/(tabs)/attraction')}
-      />
-      <AttractionCard
-        title="Dambulla Cave Temple"
-        location="19 km away"
-        category="Temple"
-        tone="blue"
-        onPress={() => router.push('/(tabs)/attraction')}
-      />
-      <AttractionCard
-        title="Minneriya National Park"
-        location="27 km away"
-        category="Nature"
-        tone="forest"
-        onPress={() => router.push('/(tabs)/attraction')}
-      />
+      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {error ? <DataMessage isError message={error} /> : null}
+      {!isLoading && !error && filteredAttractions.length === 0 ? (
+        <DataMessage message="No attractions match this filter." />
+      ) : null}
+      {filteredAttractions.map((item, index) => (
+        <AttractionCard
+          key={item.id}
+          title={item.name}
+          location={item.location}
+          category={item.category}
+          tone={index % 3 === 0 ? 'gold' : index % 3 === 1 ? 'blue' : 'forest'}
+          imageUrl={item.photos[0]?.url}
+          onPress={() =>
+            router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+          }
+        />
+      ))}
     </ScreenFrame>
   );
 }
@@ -74,7 +81,6 @@ const styles = StyleSheet.create({
   locationCopy: { flex: 1 },
   locationTitle: { color: TravelColors.ink, fontSize: 10, fontWeight: '700' },
   locationSubtitle: { marginTop: 3, color: TravelColors.muted, fontSize: 8 },
-  change: { color: TravelColors.green, fontSize: 9, fontWeight: '700' },
   filters: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   filter: {
     borderWidth: 1,

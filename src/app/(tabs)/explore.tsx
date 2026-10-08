@@ -23,16 +23,20 @@ export default function ExploreScreen() {
         const matchesSearch = `${item.name} ${item.location} ${item.category}`
           .toLowerCase()
           .includes(search.trim().toLowerCase());
-        return matchesSearch && (filter === 'All' || item.category.toLowerCase().includes(filter.toLowerCase()));
+        return (
+          matchesSearch &&
+          (filter === 'All' || item.category.toLowerCase().includes(filter.toLowerCase()))
+        );
       }),
     [attractions, filter, search],
   );
 
   return (
     <ScreenFrame
-      title="Explore"
-      subtitle="Find a place that feels like yours."
+      title="Explore attractions"
+      subtitle="Discover places and stories across Sri Lanka."
       onProfile={() => router.push('/(tabs)/profile')}>
+      <Text style={styles.eyebrow}>LANKA HERITAGE</Text>
       <View style={styles.search}>
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
@@ -40,6 +44,7 @@ export default function ExploreScreen() {
           onChangeText={setSearch}
           placeholder="Search attractions..."
           placeholderTextColor="#8b9189"
+          returnKeyType="search"
           style={styles.searchInput}
           value={search}
         />
@@ -48,6 +53,7 @@ export default function ExploreScreen() {
       <SectionHeading title="Explore the map" />
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel="Open interactive map"
         onPress={() => router.push('/(tabs)/map')}
         style={styles.mapCard}>
         <View style={styles.mapGrid} />
@@ -65,7 +71,11 @@ export default function ExploreScreen() {
         </View>
       </Pressable>
 
-      <SectionHeading title="Nearby attractions" action="See all" onPress={() => router.push('/(tabs)/nearby')} />
+      <SectionHeading
+        title="Nearby attractions"
+        action="See all"
+        onPress={() => router.push('/(tabs)/nearby')}
+      />
       <View style={styles.filterRow}>
         {filters.map((item) => {
           const active = filter === item;
@@ -84,7 +94,13 @@ export default function ExploreScreen() {
       {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && filteredAttractions.length === 0 ? (
-        <DataMessage message="No attractions match these filters." />
+        <DataMessage
+          message={
+            search || filter !== 'All'
+              ? 'No attractions match your search and filters.'
+              : 'No attractions are available yet.'
+          }
+        />
       ) : null}
       <View style={styles.cardList}>
         {filteredAttractions.map((item, index) => (
@@ -106,6 +122,13 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
+  eyebrow: {
+    marginTop: 3,
+    color: TravelColors.orange,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
   search: {
     minHeight: 40,
     flexDirection: 'row',
@@ -127,7 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e3ece6',
   },
   mapGrid: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     opacity: 0.4,
     backgroundColor: '#d9e4dc',
   },

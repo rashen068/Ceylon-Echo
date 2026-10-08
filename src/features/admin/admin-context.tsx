@@ -206,6 +206,8 @@ function parseAttraction(id: string, data: DocumentData): Attraction {
     typeof data.category !== 'string' ||
     typeof data.description !== 'string' ||
     typeof data.location !== 'string' ||
+    !isNullableNumber(data.durationMinutes ?? null) ||
+    !isNullableNumber(data.chapterCount ?? null) ||
     !isNullableNumber(data.latitude) ||
     !isNullableNumber(data.longitude) ||
     !Array.isArray(data.photos) ||
@@ -221,6 +223,8 @@ function parseAttraction(id: string, data: DocumentData): Attraction {
     category: data.category,
     description: data.description,
     location: data.location,
+    durationMinutes: data.durationMinutes ?? null,
+    chapterCount: data.chapterCount ?? null,
     latitude: data.latitude,
     longitude: data.longitude,
     photos: data.photos,

@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
@@ -20,84 +27,105 @@ export default function WelcomePage() {
   }, [isLoading, user]);
 
   return (
-    <View style={styles.screen}>
-      {!imageFailed ? (
-        <Image
-          accessibilityLabel="Ancient Sri Lankan stone temple"
-          contentFit="cover"
-          onError={() => setImageFailed(true)}
-          source={require('../../assets/images/onboarding(8).jpg')}
-          style={StyleSheet.absoluteFill}
-          transition={500}
-        />
-      ) : null}
-      <View style={styles.imageOverlay} />
-
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <Animated.View entering={FadeIn.duration(650)} style={styles.topBar}>
-          <View style={styles.brand}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>CE</Text>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <Animated.View entering={FadeIn.duration(650)} style={styles.topBar}>
+            <View style={styles.brand}>
+              <View style={styles.brandMark}>
+                <Text style={styles.brandMarkText}>CE</Text>
+              </View>
+              <View>
+                <Text style={styles.brandName}>CEYLON ECHO</Text>
+                <Text style={styles.brandCaption}>A SRI LANKAN JOURNEY</Text>
+              </View>
             </View>
-            <Text style={styles.brandName}>CEYLON ECHO</Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onboardingNavigation.begin}
-            style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-            <Text style={styles.skipText}>Skip</Text>
-          </Pressable>
-        </Animated.View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onboardingNavigation.begin}
+              style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
+              <Text style={styles.skipText}>Skip</Text>
+            </Pressable>
+          </Animated.View>
 
-        <Animated.View
-          entering={FadeInUp.duration(700).delay(120)}
-          style={[styles.welcomeCopy, { paddingBottom: Math.max(height * 0.045, 24) }]}>
-          <View style={styles.photoCaption}>
-            <View style={styles.captionRule} />
-            <Text style={styles.eyebrow}>AN ISLAND OF STORIES</Text>
-          </View>
-          <Text style={styles.welcomeTitle}>Discover the Soul of Sri Lanka</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Find your way through living culture, ancient heritage, wild nature and unforgettable
-            island experiences.
-          </Text>
-          <View style={styles.pageIndicators} accessibilityLabel="Onboarding page 1 of 1">
-            <View style={styles.activeDot} />
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onboardingNavigation.begin}
-            style={({ pressed }) => [styles.startButton, pressed && styles.pressed]}>
-            <Text style={styles.startButtonText}>Get Started</Text>
-            <Text style={styles.buttonArrow}>→</Text>
-          </Pressable>
-          <Text style={styles.footer}>A more meaningful way to explore</Text>
-        </Animated.View>
-      </SafeAreaView>
-    </View>
+          <Animated.View
+            entering={FadeIn.duration(650).delay(80)}
+            style={[styles.photoFrame, { height: Math.min(Math.max(height * 0.38, 210), 310) }]}>
+            {!imageFailed ? (
+              <Image
+                accessibilityLabel="Sri Lankan stilt fishermen at sunset"
+                contentFit="cover"
+                onError={() => setImageFailed(true)}
+                source={require('../../assets/images/stilt-fishermen.png')}
+                style={StyleSheet.absoluteFill}
+                transition={500}
+              />
+            ) : (
+              <View style={styles.photoFallback}>
+                <Text style={styles.photoFallbackMark}>CE</Text>
+                <Text style={styles.photoFallbackText}>The island is waiting to be explored</Text>
+              </View>
+            )}
+            <View pointerEvents="none" style={styles.photoShade} />
+            <View style={styles.photoLabel}>
+              <View style={styles.photoDot} />
+              <Text style={styles.photoLabelText}>SRI LANKA · ISLAND STORIES</Text>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.duration(700).delay(140)} style={styles.welcomeCopy}>
+            <View style={styles.photoCaption}>
+              <View style={styles.captionRule} />
+              <Text style={styles.eyebrow}>AN ISLAND OF STORIES</Text>
+            </View>
+            <Text style={styles.welcomeTitle}>Discover the Soul of Sri Lanka</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Find your way through living culture, ancient heritage, wild nature and unforgettable
+              island experiences.
+            </Text>
+            <View style={styles.pageIndicators} accessibilityLabel="Onboarding page 1 of 1">
+              <View style={styles.activeDot} />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onboardingNavigation.begin}
+              style={({ pressed }) => [styles.startButton, pressed && styles.pressed]}>
+              <Text style={styles.startButtonText}>Get Started</Text>
+              <Text style={styles.buttonArrow}>→</Text>
+            </Pressable>
+            <Text style={styles.footer}>A more meaningful way to explore</Text>
+          </Animated.View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#35473d',
+    backgroundColor: '#f8f7f2',
   },
-  imageOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(12, 24, 19, 0.38)',
-  },
-  safeArea: {
-    flex: 1,
-    justifyContent: 'space-between',
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 14,
+  },
+  content: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 10,
+    minHeight: 46,
+    marginBottom: 14,
   },
   brand: {
     flexDirection: 'row',
@@ -105,14 +133,12 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   brandMark: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
     borderRadius: 11,
-    backgroundColor: 'rgba(27, 63, 48, 0.82)',
+    backgroundColor: '#285944',
   },
   brandMarkText: {
     color: '#ffffff',
@@ -122,37 +148,97 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   brandName: {
-    color: '#ffffff',
+    color: '#26382f',
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 2,
+    fontWeight: '800',
+    letterSpacing: 1.6,
+  },
+  brandCaption: {
+    marginTop: 3,
+    color: '#85877f',
+    fontSize: 7,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   skipButton: {
-    minHeight: 38,
+    minHeight: 36,
     justifyContent: 'center',
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.58)',
+    borderColor: '#e1e2da',
     borderRadius: 20,
-    backgroundColor: 'rgba(20, 32, 27, 0.25)',
+    backgroundColor: '#ffffff',
   },
   skipText: {
-    color: '#ffffff',
+    color: '#526158',
     fontSize: 11,
     fontWeight: '600',
+  },
+  photoFrame: {
+    overflow: 'hidden',
+    position: 'relative',
+    borderRadius: 20,
+    backgroundColor: '#536b52',
+  },
+  photoShade: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(16, 31, 23, 0.14)',
+  },
+  photoLabel: {
+    position: 'absolute',
+    left: 13,
+    bottom: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(20, 39, 30, 0.72)',
+  },
+  photoDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#e4c78f',
+  },
+  photoLabelText: {
+    color: '#ffffff',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  photoFallback: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#536b52',
+  },
+  photoFallbackMark: {
+    color: '#f0d39f',
+    fontFamily: 'serif',
+    fontSize: 25,
+    fontWeight: '700',
+  },
+  photoFallbackText: {
+    marginTop: 6,
+    color: '#ffffff',
+    fontSize: 11,
+    textAlign: 'center',
   },
   welcomeCopy: {
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
     alignItems: 'flex-start',
-    marginTop: 'auto',
+    marginTop: 22,
   },
   photoCaption: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    marginBottom: 14,
+    marginBottom: 11,
   },
   captionRule: {
     width: 26,
@@ -160,32 +246,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#e7c997',
   },
   eyebrow: {
-    color: '#f0dfbd',
+    color: '#a16b47',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.7,
   },
   welcomeTitle: {
     maxWidth: 360,
-    color: '#ffffff',
+    color: '#26382f',
     fontFamily: 'serif',
-    fontSize: 36,
-    fontWeight: '600',
-    lineHeight: 42,
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 38,
   },
   welcomeSubtitle: {
     maxWidth: 340,
-    marginTop: 12,
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 13,
-    lineHeight: 20,
+    marginTop: 9,
+    color: '#777d75',
+    fontSize: 12,
+    lineHeight: 19,
   },
   pageIndicators: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 24,
-    marginBottom: 16,
+    marginTop: 17,
+    marginBottom: 13,
   },
   activeDot: {
     width: 22,
@@ -195,12 +281,13 @@ const styles = StyleSheet.create({
   },
   startButton: {
     width: '100%',
-    minHeight: 52,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 13,
     backgroundColor: '#285944',
+    boxShadow: '0px 6px 14px rgba(40, 89, 68, 0.18)',
   },
   startButtonText: {
     color: '#ffffff',
@@ -216,8 +303,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignSelf: 'center',
-    marginTop: 12,
-    color: 'rgba(255,255,255,0.72)',
+    marginTop: 11,
+    color: '#85877f',
     fontSize: 9,
     letterSpacing: 0.2,
   },

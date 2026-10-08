@@ -1,18 +1,32 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DataMessage } from '@/components/data-message';
 import {
   AttractionCard,
   ScreenFrame,
   SectionHeading,
   TravelColors,
 } from '@/components/travel-ui';
+import { useAttractions } from '@/hooks/use-attractions';
 
 const filters = ['All', 'Heritage', 'Nature', 'Beaches'];
 
 export default function ExploreScreen() {
   const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
+  const { attractions, isLoading, error } = useAttractions();
+  const filteredAttractions = useMemo(
+    () =>
+      attractions.filter((item) => {
+        const matchesSearch = `${item.name} ${item.location} ${item.category}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase());
+        return matchesSearch && (filter === 'All' || item.category.toLowerCase().includes(filter.toLowerCase()));
+      }),
+    [attractions, filter, search],
+  );
 
   return (
     <ScreenFrame
@@ -23,9 +37,11 @@ export default function ExploreScreen() {
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
           accessibilityLabel="Search attractions"
+          onChangeText={setSearch}
           placeholder="Search attractions..."
           placeholderTextColor="#8b9189"
           style={styles.searchInput}
+          value={search}
         />
       </View>
 
@@ -65,28 +81,25 @@ export default function ExploreScreen() {
           );
         })}
       </View>
+      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {error ? <DataMessage isError message={error} /> : null}
+      {!isLoading && !error && filteredAttractions.length === 0 ? (
+        <DataMessage message="No attractions match these filters." />
+      ) : null}
       <View style={styles.cardList}>
-        <AttractionCard
-          title="Sigiriya Fortress"
-          location="Matale District"
-          category="Ancient site"
-          tone="gold"
-          onPress={() => router.push('/(tabs)/attraction')}
-        />
-        <AttractionCard
-          title="Dambulla Cave Temple"
-          location="Central Province"
-          category="Temple"
-          tone="blue"
-          onPress={() => router.push('/(tabs)/attraction')}
-        />
-        <AttractionCard
-          title="Minneriya National Park"
-          location="North Central"
-          category="Wildlife"
-          tone="forest"
-          onPress={() => router.push('/(tabs)/attraction')}
-        />
+        {filteredAttractions.map((item, index) => (
+          <AttractionCard
+            key={item.id}
+            title={item.name}
+            location={item.location}
+            category={item.category}
+            tone={index % 3 === 0 ? 'gold' : index % 3 === 1 ? 'blue' : 'forest'}
+            imageUrl={item.photos[0]?.url}
+            onPress={() =>
+              router.push({ pathname: '/(tabs)/attraction', params: { id: item.id } })
+            }
+          />
+        ))}
       </View>
     </ScreenFrame>
   );

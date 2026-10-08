@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import {
   Pressable,
   ScrollView,
+  Image,
   StyleSheet,
   Text,
   View,
@@ -211,6 +212,7 @@ export function AttractionCard({
   category = 'Heritage',
   tone = 'green',
   compact = false,
+  imageUrl,
   onPress,
 }: {
   title: string;
@@ -218,6 +220,7 @@ export function AttractionCard({
   category?: string;
   tone?: 'green' | 'gold' | 'blue' | 'forest';
   compact?: boolean;
+  imageUrl?: string | null;
   onPress?: () => void;
 }) {
   return (
@@ -229,7 +232,16 @@ export function AttractionCard({
         compact && styles.attractionCardCompact,
         pressed && styles.pressed,
       ]}>
-      <LandscapeArt tone={tone} style={compact ? styles.compactArt : styles.cardArt} />
+      {imageUrl ? (
+        <Image
+          accessibilityLabel={`${title} photo`}
+          resizeMode="cover"
+          source={{ uri: imageUrl }}
+          style={compact ? styles.compactArt : styles.cardArt}
+        />
+      ) : (
+        <LandscapeArt tone={tone} style={compact ? styles.compactArt : styles.cardArt} />
+      )}
       <View style={styles.cardDetails}>
         <View style={styles.cardCopy}>
           <Text numberOfLines={1} style={styles.cardTitle}>

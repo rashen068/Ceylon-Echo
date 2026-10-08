@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
@@ -8,6 +10,8 @@ import { onboardingNavigation } from '@/navigation/app-navigation';
 
 export default function WelcomePage() {
   const { user, isLoading } = useAuth();
+  const { height } = useWindowDimensions();
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -17,51 +21,58 @@ export default function WelcomePage() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.sky} />
-      <View style={styles.distantMountainLeft} />
-      <View style={styles.distantMountainRight} />
-      <View style={styles.valley} />
-      <View style={styles.foregroundHill} />
-
-      <View style={styles.lighthouse}>
-        <View style={styles.lighthouseRoof} />
-        <View style={styles.lighthouseLantern}>
-          <View style={styles.lighthouseWindow} />
-        </View>
-        <View style={styles.lighthouseBody}>
-          <View style={styles.lighthouseStripe} />
-          <View style={styles.lighthouseStripeLower} />
-        </View>
-      </View>
+      {!imageFailed ? (
+        <Image
+          accessibilityLabel="Ancient Sri Lankan stone temple"
+          contentFit="cover"
+          onError={() => setImageFailed(true)}
+          source={require('../../assets/images/onboarding(8).jpg')}
+          style={StyleSheet.absoluteFill}
+          transition={500}
+        />
+      ) : null}
+      <View style={styles.imageOverlay} />
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <View style={styles.brand}>
-          <View style={styles.wordmark}>
-            <View style={styles.wordmarkCrest}>
-              <View style={styles.crestColumn} />
-              <View style={styles.crestArch} />
+        <Animated.View entering={FadeIn.duration(650)} style={styles.topBar}>
+          <View style={styles.brand}>
+            <View style={styles.brandMark}>
+              <Text style={styles.brandMarkText}>CE</Text>
             </View>
-            <Text style={styles.wordmarkTitle}>Ceylon Echo</Text>
+            <Text style={styles.brandName}>CEYLON ECHO</Text>
           </View>
-          <View style={styles.emblem}>
-            <View style={styles.emblemMark}>
-              <View style={styles.emblemLeaf} />
-              <View style={styles.emblemTrunk} />
-            </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onboardingNavigation.begin}
+            style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
+            <Text style={styles.skipText}>Skip</Text>
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInUp.duration(700).delay(120)}
+          style={[styles.welcomeCopy, { paddingBottom: Math.max(height * 0.045, 24) }]}>
+          <View style={styles.photoCaption}>
+            <View style={styles.captionRule} />
+            <Text style={styles.eyebrow}>AN ISLAND OF STORIES</Text>
           </View>
-        </View>
-        <View style={styles.welcomeCopy}>
-          <Text style={styles.welcomeTitle}>Discover the soul of Sri Lanka</Text>
+          <Text style={styles.welcomeTitle}>Discover the Soul of Sri Lanka</Text>
           <Text style={styles.welcomeSubtitle}>
-            Find remarkable places, stories and experiences across the island.
+            Find your way through living culture, ancient heritage, wild nature and unforgettable
+            island experiences.
           </Text>
+          <View style={styles.pageIndicators} accessibilityLabel="Onboarding page 1 of 1">
+            <View style={styles.activeDot} />
+          </View>
           <Pressable
             accessibilityRole="button"
             onPress={onboardingNavigation.begin}
             style={({ pressed }) => [styles.startButton, pressed && styles.pressed]}>
-            <Text style={styles.startButtonText}>Begin your journey</Text>
+            <Text style={styles.startButtonText}>Get Started</Text>
+            <Text style={styles.buttonArrow}>→</Text>
           </Pressable>
-        </View>
+          <Text style={styles.footer}>A more meaningful way to explore</Text>
+        </Animated.View>
       </SafeAreaView>
     </View>
   );
@@ -71,215 +82,146 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#9fbab6',
+    backgroundColor: '#35473d',
   },
-  sky: {
+  imageOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#c9d4d0',
-  },
-  distantMountainLeft: {
-    position: 'absolute',
-    width: '125%',
-    height: '52%',
-    left: '-31%',
-    top: '25%',
-    borderRadius: 500,
-    backgroundColor: '#849e93',
-    transform: [{ rotate: '-12deg' }],
-  },
-  distantMountainRight: {
-    position: 'absolute',
-    width: '115%',
-    height: '50%',
-    right: '-46%',
-    top: '34%',
-    borderRadius: 500,
-    backgroundColor: '#718d82',
-    transform: [{ rotate: '12deg' }],
-  },
-  valley: {
-    position: 'absolute',
-    width: '155%',
-    height: '42%',
-    left: '-31%',
-    bottom: '-1%',
-    borderRadius: 500,
-    backgroundColor: '#668873',
-    transform: [{ rotate: '-8deg' }],
-  },
-  foregroundHill: {
-    position: 'absolute',
-    width: '115%',
-    height: '25%',
-    right: '-35%',
-    bottom: '-3%',
-    borderRadius: 500,
-    backgroundColor: '#547a66',
-    transform: [{ rotate: '-15deg' }],
-  },
-  lighthouse: {
-    position: 'absolute',
-    width: 54,
-    height: '57%',
-    left: '8%',
-    bottom: '-2%',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  lighthouseRoof: {
-    zIndex: 2,
-    width: 30,
-    height: 10,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: '#c5a873',
-  },
-  lighthouseLantern: {
-    zIndex: 2,
-    width: 23,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#e8e0c9',
-    backgroundColor: '#547467',
-  },
-  lighthouseWindow: {
-    width: 7,
-    height: 10,
-    backgroundColor: '#d7c58f',
-  },
-  lighthouseBody: {
-    width: 39,
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#e8e4d4',
-  },
-  lighthouseStripe: {
-    width: '100%',
-    height: 8,
-    marginTop: '45%',
-    backgroundColor: '#b7714d',
-  },
-  lighthouseStripeLower: {
-    width: '100%',
-    height: 8,
-    marginTop: 19,
-    backgroundColor: '#b7714d',
+    backgroundColor: 'rgba(12, 24, 19, 0.38)',
   },
   safeArea: {
     flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+  },
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
   },
   brand: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: '18%',
+    gap: 9,
+  },
+  brandMark: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
+    borderRadius: 11,
+    backgroundColor: 'rgba(27, 63, 48, 0.82)',
+  },
+  brandMarkText: {
+    color: '#ffffff',
+    fontFamily: 'serif',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  brandName: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  skipButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.58)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(20, 32, 27, 0.25)',
+  },
+  skipText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   welcomeCopy: {
     width: '100%',
-    alignItems: 'center',
+    maxWidth: 520,
+    alignSelf: 'center',
+    alignItems: 'flex-start',
     marginTop: 'auto',
-    paddingHorizontal: 26,
-    paddingBottom: 24,
+  },
+  photoCaption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 14,
+  },
+  captionRule: {
+    width: 26,
+    height: 1,
+    backgroundColor: '#e7c997',
+  },
+  eyebrow: {
+    color: '#f0dfbd',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.7,
   },
   welcomeTitle: {
+    maxWidth: 360,
     color: '#ffffff',
     fontFamily: 'serif',
-    fontSize: 25,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 36,
+    fontWeight: '600',
+    lineHeight: 42,
   },
   welcomeSubtitle: {
-    marginTop: 8,
-    color: '#f2f1e7',
+    maxWidth: 340,
+    marginTop: 12,
+    color: 'rgba(255,255,255,0.88)',
     fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
+    lineHeight: 20,
+  },
+  pageIndicators: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  activeDot: {
+    width: 22,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#f0d39f',
   },
   startButton: {
     width: '100%',
-    minHeight: 46,
+    minHeight: 52,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 22,
-    borderRadius: 10,
-    backgroundColor: '#315b49',
-  },
-  pressed: {
-    opacity: 0.82,
+    borderRadius: 13,
+    backgroundColor: '#285944',
   },
   startButtonText: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  wordmark: {
-    alignItems: 'center',
-    gap: 2,
-    marginBottom: 10,
-  },
-  wordmarkCrest: {
-    width: 17,
-    height: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  crestColumn: {
-    width: 4,
-    height: 12,
-    borderRadius: 2,
-    backgroundColor: '#355c4a',
-  },
-  crestArch: {
+  buttonArrow: {
     position: 'absolute',
-    width: 13,
-    height: 9,
-    top: 2,
-    borderWidth: 1.5,
-    borderColor: '#355c4a',
-    borderBottomWidth: 0,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  wordmarkTitle: {
-    color: '#355c4a',
-    fontFamily: 'serif',
+    right: 18,
+    color: '#ffffff',
     fontSize: 19,
-    fontWeight: '600',
-    letterSpacing: 0.3,
   },
-  emblem: {
-    width: 50,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#315b49',
+  footer: {
+    alignSelf: 'center',
+    marginTop: 12,
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 9,
+    letterSpacing: 0.2,
   },
-  emblemMark: {
-    width: 26,
-    height: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#edf0df',
-    borderRadius: 4,
-  },
-  emblemLeaf: {
-    width: 12,
-    height: 7,
-    marginBottom: 1,
-    borderWidth: 1.5,
-    borderColor: '#edf0df',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    borderBottomWidth: 0,
-  },
-  emblemTrunk: {
-    width: 2,
-    height: 8,
-    borderRadius: 2,
-    backgroundColor: '#edf0df',
+  pressed: {
+    opacity: 0.82,
   },
 });

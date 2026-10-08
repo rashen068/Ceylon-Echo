@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInUp, LinearTransition } from 'react-native-reanimated';
@@ -14,67 +14,43 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { onboardingNavigation } from '@/navigation/app-navigation';
-import { getSavedLanguage, saveLanguage } from '@/lib/language-preference';
+import { useLanguage } from '@/context/LanguageContext';
 import type { AppLanguage } from '@/lib/language-preference';
 
-const languageOptions: { code: AppLanguage; label: string; flag: string; detail: string }[] = [
-  { code: 'en', label: 'English', flag: '🇬🇧', detail: 'Explore in English' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷', detail: 'Explorer en français' },
-  { code: 'ta', label: 'தமிழ்', flag: '🇱🇰', detail: 'இலங்கையை தமிழில் கண்டறியுங்கள்' },
+const languageOptions: {
+  code: AppLanguage;
+  label: string;
+  flag: string;
+  detailKey: 'languageEnglishDetail' | 'languageFrenchDetail' | 'languageTamilDetail';
+}[] = [
+  { code: 'en', label: 'English', flag: '🇬🇧', detailKey: 'languageEnglishDetail' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷', detailKey: 'languageFrenchDetail' },
+  { code: 'ta', label: 'தமிழ்', flag: '🇱🇰', detailKey: 'languageTamilDetail' },
 ];
 
 export default function LanguageScreen() {
   const { height } = useWindowDimensions();
-  const [selected, setSelected] = useState<AppLanguage | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { language, isReady, initializationError, setLanguage, t, retryInitialization } =
+    useLanguage();
+  const [selected, setSelected] = useState<AppLanguage>(language);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    getSavedLanguage()
-      .then((language) => {
-        if (active && language) {
-          setSelected(language);
-        }
-      })
-      .catch((loadError: unknown) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? `Could not load your saved language: ${loadError.message}`
-              : 'Could not load your saved language.',
-          );
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const isLoading = !isReady;
 
   async function continueToApp() {
-    if (isSaving || isLoading || !selected) {
+    if (isSaving || isLoading || initializationError) {
       return;
     }
 
     setIsSaving(true);
     setError(null);
     try {
-      await saveLanguage(selected);
-      onboardingNavigation.finish();
+      await setLanguage(selected);
+      onboardingNavigation.finishLanguageSelection();
     } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? `Your language could not be saved. Please try again. ${saveError.message}`
-          : 'Your language could not be saved. Please try again.',
-      );
+      setError(saveError instanceof Error ? `${t('languageSaveError')} ${saveError.message}` : t('languageSaveError'));
     } finally {
       setIsSaving(false);
     }
@@ -93,14 +69,14 @@ export default function LanguageScreen() {
             </View>
             <View>
               <Text style={styles.brandName}>CEYLON ECHO</Text>
-              <Text style={styles.brandCaption}>A SRI LANKAN JOURNEY</Text>
+              <Text style={styles.brandCaption}>{t('journeyCaption')}</Text>
             </View>
           </View>
           <Pressable
             accessibilityRole="button"
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <Text style={styles.backText}>Back</Text>
+            <Text style={styles.backText}>{t('back')}</Text>
           </Pressable>
         </Animated.View>
 
@@ -109,7 +85,7 @@ export default function LanguageScreen() {
           style={[styles.photoFrame, { height: Math.min(Math.max(height * 0.3, 170), 250) }]}>
           {!imageFailed ? (
             <Image
-              accessibilityLabel="Sigiriya Rock Fortress above the Sri Lankan forest"
+              accessibilityLabel={t('sigiriyaImageDescription')}
               contentFit="cover"
               onError={() => setImageFailed(true)}
               source={require('../../assets/images/Language(8).jpg')}
@@ -119,22 +95,20 @@ export default function LanguageScreen() {
           ) : (
             <View style={styles.photoFallback}>
               <Text style={styles.photoFallbackMark}>CE</Text>
-              <Text style={styles.photoFallbackText}>The island is waiting to be explored</Text>
+              <Text style={styles.photoFallbackText}>{t('islandAwaits')}</Text>
             </View>
           )}
           <View style={styles.photoShade} />
           <View style={styles.photoLabel}>
             <View style={styles.photoDot} />
-            <Text style={styles.photoLabelText}>SIGIRIYA · SRI LANKA</Text>
+            <Text style={styles.photoLabelText}>{t('sigiriyaSriLanka')}</Text>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.duration(600).delay(140)} style={styles.copy}>
-          <Text style={styles.eyebrow}>MAKE IT YOUR JOURNEY</Text>
-          <Text style={styles.title}>Choose your language</Text>
-          <Text style={styles.subtitle}>
-            Select your preferred language to continue.
-          </Text>
+          <Text style={styles.eyebrow}>{t('languageEyebrow')}</Text>
+          <Text style={styles.title}>{t('chooseLanguage')}</Text>
+          <Text style={styles.subtitle}>{t('selectPreferredLanguage')}</Text>
         </Animated.View>
 
         <View style={styles.languageList}>
@@ -148,8 +122,20 @@ export default function LanguageScreen() {
                 <Pressable
                   accessibilityRole="radio"
                   accessibilityState={{ selected: isSelected, checked: isSelected }}
+                  disabled={isSelecting || isSaving}
                   onPress={() => {
                     setSelected(language.code);
+                    setIsSelecting(true);
+                    setError(null);
+                    void setLanguage(language.code)
+                      .catch((saveError: unknown) => {
+                        setError(
+                          saveError instanceof Error
+                            ? `${t('languageSaveError')} ${saveError.message}`
+                            : t('languageSaveError'),
+                        );
+                      })
+                      .finally(() => setIsSelecting(false));
                     setError(null);
                   }}
                   style={({ pressed }) => [
@@ -163,7 +149,7 @@ export default function LanguageScreen() {
                       {language.label}
                     </Text>
                     <Text style={[styles.languageDetail, isSelected && styles.languageDetailSelected]}>
-                      {language.detail}
+                      {t(language.detailKey)}
                     </Text>
                   </View>
                   <View style={[styles.radio, isSelected && styles.radioSelected]}>
@@ -175,6 +161,17 @@ export default function LanguageScreen() {
           })}
         </View>
 
+        {initializationError ? (
+          <View>
+            <Text accessibilityLiveRegion="polite" style={styles.error}>
+              {t('languageLoadError')} {initializationError}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={retryInitialization}>
+              <Text style={styles.backText}>{t('languageRetry')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {error ? (
           <Text accessibilityLiveRegion="polite" style={styles.error}>
             {error}
@@ -183,22 +180,27 @@ export default function LanguageScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: isLoading || isSaving || selected === null }}
-          disabled={isLoading || isSaving || selected === null}
+          accessibilityState={{
+            disabled: isLoading || isSaving || isSelecting || Boolean(initializationError),
+          }}
+          disabled={isLoading || isSaving || isSelecting || Boolean(initializationError)}
           onPress={() => void continueToApp()}
           style={({ pressed }) => [
             styles.continueButton,
-            pressed && !isLoading && !isSaving && selected !== null && styles.pressed,
-            (isLoading || isSaving || selected === null) && styles.continueDisabled,
+            pressed && !isLoading && !isSaving && !isSelecting && styles.pressed,
+            (isLoading || isSaving || isSelecting || Boolean(initializationError)) &&
+              styles.continueDisabled,
           ]}>
-          {isLoading || isSaving ? (
+          {isLoading || isSaving || isSelecting ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={styles.continueText}>Continue</Text>
+            <Text style={styles.continueText}>{t('continue')}</Text>
           )}
-          {!isLoading && !isSaving ? <Text style={styles.continueArrow}>→</Text> : null}
+          {!isLoading && !isSaving && !isSelecting ? (
+            <Text style={styles.continueArrow}>→</Text>
+          ) : null}
         </Pressable>
-        <Text style={styles.footer}>You can change your language any time.</Text>
+        <Text style={styles.footer}>{t('languageChangeAnytime')}</Text>
       </ScrollView>
     </SafeAreaView>
   );

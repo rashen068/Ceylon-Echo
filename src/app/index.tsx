@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -10,14 +10,15 @@ import { onboardingNavigation } from '@/navigation/app-navigation';
 
 export default function WelcomePage() {
   const { user, isLoading } = useAuth();
+  const pathname = usePathname();
   const { height } = useWindowDimensions();
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
-    if (user && !isLoading) {
+    if (pathname === '/' && user && !isLoading) {
       router.replace('/(tabs)/home');
     }
-  }, [isLoading, user]);
+  }, [isLoading, pathname, user]);
 
   return (
     <View style={styles.screen}>

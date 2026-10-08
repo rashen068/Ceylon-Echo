@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { router, usePathname } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -7,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -20,6 +22,7 @@ type SignInMode = 'user' | 'visitor';
 
 export default function LoginScreen() {
   const { height } = useWindowDimensions();
+  const pathname = usePathname();
   const { user, isFirebaseConfigured, authError, login, register } = useAuth();
   const [mode, setMode] = useState<SignInMode>('user');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -29,12 +32,49 @@ export default function LoginScreen() {
   const [message, setMessage] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const completedSignIn = useRef(false);
+  const secretTapCount = useRef(0);
+  const secretTapStartedAt = useRef<number | null>(null);
+  const secretTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (user && !isBusy && !completedSignIn.current) {
+    if (pathname === '/login' && user && !isBusy && !completedSignIn.current) {
       onboardingNavigation.finish();
     }
-  }, [isBusy, user]);
+  }, [isBusy, pathname, user]);
+
+  useEffect(
+    () => () => {
+      if (secretTapTimeout.current) {
+        clearTimeout(secretTapTimeout.current);
+      }
+    },
+    [],
+  );
+
+  function resetSecretTap() {
+    secretTapCount.current = 0;
+    secretTapStartedAt.current = null;
+    if (secretTapTimeout.current) {
+      clearTimeout(secretTapTimeout.current);
+      secretTapTimeout.current = null;
+    }
+  }
+
+  function handleSecretTap() {
+    const now = Date.now();
+    const startedAt = secretTapStartedAt.current;
+    if (startedAt === null || now - startedAt >= 2000) {
+      resetSecretTap();
+      secretTapStartedAt.current = now;
+      secretTapTimeout.current = setTimeout(resetSecretTap, 2000);
+    }
+
+    secretTapCount.current += 1;
+    if (secretTapCount.current === 5) {
+      router.push('/admin');
+      resetSecretTap();
+    }
+  }
 
   async function handleSignIn() {
     if (mode === 'visitor') {
@@ -84,13 +124,15 @@ export default function LoginScreen() {
           ]}
           keyboardShouldPersistTaps="handled">
           <View style={styles.content}>
-            <Text
-              style={[
-                styles.title,
-                { marginBottom: Math.max(height * 0.07, 30) },
-              ]}>
-              Access Portal
-            </Text>
+            <TouchableWithoutFeedback onPress={handleSecretTap}>
+              <Text
+                style={[
+                  styles.title,
+                  { marginBottom: Math.max(height * 0.07, 30) },
+                ]}>
+                Access Portal
+              </Text>
+            </TouchableWithoutFeedback>
 
             <View style={[styles.imageRow, { height: Math.min(height * 0.125, 120) }]}>
               <View

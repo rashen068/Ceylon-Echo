@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const APP_LANGUAGES = ['en', 'fr', 'ta'] as const;
+export const APP_LANGUAGES = ['en', 'fr', 'zh'] as const;
 export type AppLanguage = (typeof APP_LANGUAGES)[number];
 
 const LANGUAGE_STORAGE_KEY = '@ceylon-echo/language';
@@ -15,10 +15,10 @@ export async function getSavedLanguage(): Promise<AppLanguage | null> {
     case 'Français':
     case 'French':
       return 'fr';
-    case 'ta':
-    case 'தமிழ்':
-    case 'Tamil':
-      return 'ta';
+    case 'zh':
+    case '中文':
+    case 'Chinese':
+      return 'zh';
     default:
       return null;
   }

@@ -14,6 +14,10 @@ import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { requireFirestore, requireStorage } from '@/lib/firebase';
+import {
+  normalizeLocalizedAudioUrls,
+  normalizeLocalizedText,
+} from '@/lib/localized-attraction';
 import type { Attraction, UploadedMedia } from '@/services/attractionService';
 
 export type { Attraction, UploadedMedia } from '@/services/attractionService';
@@ -205,10 +209,18 @@ async function deleteStoredMedia(media: UploadedMedia) {
 }
 
 function parseAttraction(id: string, data: DocumentData): Attraction {
+  const legacyAudioUrl =
+    typeof data.audioGuide === 'object' &&
+    data.audioGuide !== null &&
+    'url' in data.audioGuide &&
+    typeof data.audioGuide.url === 'string'
+      ? data.audioGuide.url
+      : '';
   if (
     typeof data.name !== 'string' ||
     typeof data.category !== 'string' ||
-    typeof data.description !== 'string' ||
+    (typeof data.description !== 'string' &&
+      (typeof data.description !== 'object' || data.description === null)) ||
     typeof data.location !== 'string' ||
     !isNullableNumber(data.durationMinutes ?? null) ||
     !isNullableNumber(data.chapterCount ?? null) ||
@@ -216,7 +228,9 @@ function parseAttraction(id: string, data: DocumentData): Attraction {
     !isNullableNumber(data.longitude) ||
     !Array.isArray(data.photos) ||
     !data.photos.every(isUploadedMedia) ||
-    (data.audioGuide !== null && !isUploadedMedia(data.audioGuide))
+    (data.audioGuide !== null &&
+      data.audioGuide !== undefined &&
+      !isUploadedMedia(data.audioGuide))
   ) {
     throw new Error(`Attraction "${id}" has invalid Firestore data.`);
   }
@@ -225,14 +239,15 @@ function parseAttraction(id: string, data: DocumentData): Attraction {
     id,
     name: data.name,
     category: data.category,
-    description: data.description,
+    description: normalizeLocalizedText(data.description),
+    audioUrl: normalizeLocalizedAudioUrls(data.audioUrl, legacyAudioUrl),
     location: data.location,
     durationMinutes: data.durationMinutes ?? null,
     chapterCount: data.chapterCount ?? null,
     latitude: data.latitude,
     longitude: data.longitude,
     photos: data.photos,
-    audioGuide: data.audioGuide,
+    audioGuide: data.audioGuide ?? null,
   };
 }
 

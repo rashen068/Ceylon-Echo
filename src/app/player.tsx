@@ -1,10 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { File } from 'expo-file-system';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -23,26 +27,155 @@ const colors = {
   green: '#315443',
 };
 
+const AUDIO_LOAD_TIMEOUT_MS = 30_000;
+
 export default function PlayerScreen() {
-  const { audioUrl, title, subtitle, imageUrl } = useLocalSearchParams<{
+  const { audioUrl, localAudioUrl, title, subtitle, imageUrl } = useLocalSearchParams<{
     audioUrl?: string;
+    localAudioUrl?: string;
     title?: string;
     subtitle?: string;
     imageUrl?: string;
   }>();
-  const player = useAudioPlayer(audioUrl ? { uri: audioUrl } : null, {
-    updateInterval: 500,
-  });
+  const remoteUri = useMemo(
+    () => (audioUrl ? normalizeAudioUri(audioUrl) : null),
+    [audioUrl],
+  );
+  const localUri = useMemo(
+    () => (localAudioUrl ? normalizeAudioUri(localAudioUrl) : null),
+    [localAudioUrl],
+  );
+  const fallbackKey = localUri && remoteUri ? `${localUri}\n${remoteUri}` : null;
+  const [fallbackSourceKey, setFallbackSourceKey] = useState<string | null>(null);
+  const useRemoteFallback = fallbackKey !== null && fallbackSourceKey === fallbackKey;
+  const sourceUri = localUri && !useRemoteFallback ? localUri : remoteUri;
+  const player = useAudioPlayer(null, { updateInterval: 500 });
   const playbackStatus = useAudioPlayerStatus(player);
+  const [startedUri, setStartedUri] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<{ uri: string; message: string } | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reportedFailureUriRef = useRef<string | null>(null);
+  const loadError = loadFailure?.uri === sourceUri ? loadFailure.message : null;
   const isPlaying = playbackStatus.playing;
-  const isLoading = Boolean(audioUrl) && !playbackStatus.isLoaded && !playbackStatus.error;
+  const isLoading =
+    Boolean(sourceUri) &&
+    !loadError &&
+    (startedUri !== sourceUri || !playbackStatus.isLoaded);
   const playbackError =
+    loadError ??
     playbackStatus.error ??
-    (!audioUrl ? 'This attraction does not have an audio guide yet.' : null);
+    (!sourceUri ? 'This attraction does not have an audio guide yet.' : null);
   const progress =
     playbackStatus.duration > 0
       ? Math.min(playbackStatus.currentTime / playbackStatus.duration, 1)
       : 0;
+
+  const reportPlaybackError = useCallback(
+    (message: string) => {
+      if (!sourceUri || reportedFailureUriRef.current === sourceUri) {
+        return;
+      }
+      if (sourceUri === localUri) {
+        if (remoteUri && fallbackKey) {
+          setFallbackSourceKey(fallbackKey);
+        } else {
+          setLoadFailure({ uri: sourceUri, message });
+        }
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        return;
+      }
+      reportedFailureUriRef.current = sourceUri;
+      setLoadFailure({ uri: sourceUri, message });
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      Alert.alert('Playback Error', message);
+    },
+    [fallbackKey, localUri, remoteUri, sourceUri],
+  );
+
+  useEffect(() => {
+    let isActive = true;
+    reportedFailureUriRef.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    async function prepareAudio() {
+      if (!sourceUri) {
+        return;
+      }
+
+      try {
+        if (
+          Platform.OS !== 'web' &&
+          (sourceUri.startsWith('file://') || sourceUri.startsWith('/'))
+        ) {
+          const localFile = new File(sourceUri);
+          if (!localFile.exists) {
+            if (sourceUri === localUri && remoteUri && fallbackKey) {
+              setFallbackSourceKey(fallbackKey);
+              return;
+            }
+            throw new Error('The downloaded audio file is missing from this device.');
+          }
+        }
+
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: 'duckOthers',
+        });
+        if (!isActive) {
+          return;
+        }
+
+        setStartedUri(sourceUri);
+        player.replace({ uri: sourceUri });
+        timeoutRef.current = setTimeout(() => {
+          if (isActive && !player.isLoaded) {
+            reportPlaybackError('Audio loading timed out. Check your connection or try again.');
+          }
+        }, AUDIO_LOAD_TIMEOUT_MS);
+      } catch (error) {
+        if (isActive) {
+          reportPlaybackError(
+            error instanceof Error ? error.message : 'Could not load this audio guide.',
+          );
+        }
+      }
+    }
+
+    void prepareAudio();
+    return () => {
+      isActive = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [fallbackKey, localUri, player, remoteUri, reportPlaybackError, sourceUri]);
+
+  useEffect(() => {
+    if (!sourceUri || startedUri !== sourceUri) {
+      return;
+    }
+    if (playbackStatus.isLoaded) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+    if (playbackStatus.error) {
+      const error = playbackStatus.error;
+      const errorTimer = setTimeout(() => reportPlaybackError(error), 0);
+      return () => clearTimeout(errorTimer);
+    }
+  }, [playbackStatus.error, playbackStatus.isLoaded, reportPlaybackError, sourceUri, startedUri]);
 
   function togglePlayback() {
     if (!playbackStatus.isLoaded) {
@@ -135,6 +268,16 @@ export default function PlayerScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function normalizeAudioUri(uri: string): string {
+  if (/^(https?|file|content):\/\//i.test(uri)) {
+    return uri;
+  }
+  if (uri.startsWith('/')) {
+    return `file://${uri}`;
+  }
+  return uri;
 }
 
 function formatTimestamp(seconds: number): string {

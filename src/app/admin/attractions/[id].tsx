@@ -19,6 +19,11 @@ import {
 import { useAdmin } from '@/features/admin/admin-context';
 import type { Attraction } from '@/features/admin/admin-context';
 import { AdminField, AdminHeader, AdminScreen, adminColors } from '@/features/admin/admin-ui';
+import type { AppLanguage } from '@/lib/language-preference';
+import {
+  emptyLocalizedAudioUrls,
+  emptyLocalizedText,
+} from '@/lib/localized-attraction';
 import { safeFileName, uploadMedia } from '@/features/admin/upload-media';
 
 type FormValues = Omit<Attraction, 'id'>;
@@ -26,7 +31,8 @@ type FormValues = Omit<Attraction, 'id'>;
 const emptyValues: FormValues = {
   name: '',
   category: '',
-  description: '',
+  description: emptyLocalizedText(),
+  audioUrl: emptyLocalizedAudioUrls(),
   location: '',
   durationMinutes: null,
   chapterCount: null,
@@ -35,6 +41,12 @@ const emptyValues: FormValues = {
   photos: [],
   audioGuide: null,
 };
+
+const AUDIO_LANGUAGES: { code: AppLanguage; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'zh', label: '中文' },
+];
 
 export default function AttractionFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -118,10 +130,25 @@ function AttractionEditor({
   const [isBusy, setIsBusy] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
-  function updateField(field: keyof FormValues, value: string) {
-    if (field === 'name' || field === 'category' || field === 'description' || field === 'location') {
+  function updateField(field: 'name' | 'category' | 'location', value: string) {
+    if (field === 'name' || field === 'category' || field === 'location') {
       setValues((current) => ({ ...current, [field]: value }));
     }
+  }
+
+  function updateDescription(language: AppLanguage, value: string) {
+    setValues((current) => ({
+      ...current,
+      description: { ...current.description, [language]: value },
+    }));
+  }
+
+  function updateAudioUrl(language: AppLanguage, value: string) {
+    setValues((current) => ({
+      ...current,
+      audioUrl: { ...current.audioUrl, [language]: value },
+      ...(language === 'en' ? { audioGuide: null } : {}),
+    }));
   }
 
   async function saveAttraction() {
@@ -133,12 +160,26 @@ function AttractionEditor({
       setValidationMessage('Duration and chapter count must be positive whole numbers.');
       return;
     }
+    if (AUDIO_LANGUAGES.some(({ code }) => !isValidAudioUrl(values.audioUrl[code]))) {
+      setValidationMessage('Audio guide links must use a valid HTTP or HTTPS URL.');
+      return;
+    }
 
     setValidationMessage(null);
     setIsBusy(true);
     try {
       const attractionValues: FormValues = {
         ...values,
+        description: {
+          en: values.description.en,
+          fr: values.description.fr,
+          zh: values.description.zh,
+        },
+        audioUrl: {
+          en: values.audioUrl.en.trim(),
+          fr: values.audioUrl.fr.trim(),
+          zh: values.audioUrl.zh.trim(),
+        },
         durationMinutes: durationInput.trim() ? Number(durationInput) : null,
         chapterCount: chapterCountInput.trim() ? Number(chapterCountInput) : null,
       };
@@ -214,7 +255,7 @@ function AttractionEditor({
     }
   }
 
-  async function uploadAudio() {
+  async function uploadAudio(language: AppLanguage) {
     setIsBusy(true);
     setValidationMessage(null);
     try {
@@ -228,9 +269,13 @@ function AttractionEditor({
       const asset = result.assets[0];
       const name = safeFileName(asset.name);
       const contentType = getContentType(asset.mimeType, name, 'audio/mpeg');
-      const path = `attractions/${attractionId}/audio/${Date.now()}-${name}`;
+      const path = `attractions/${attractionId}/audio/${language}/${Date.now()}-${name}`;
       const audioGuide = await uploadMedia(asset.uri, name, contentType, path);
-      setValues((current) => ({ ...current, audioGuide }));
+      setValues((current) => ({
+        ...current,
+        audioUrl: { ...current.audioUrl, [language]: audioGuide.url },
+        ...(language === 'en' ? { audioGuide: null } : {}),
+      }));
     } catch (uploadError) {
       setValidationMessage(
         uploadError instanceof Error ? uploadError.message : 'Could not upload the audio file.',
@@ -283,8 +328,12 @@ function AttractionEditor({
     }));
   }
 
-  function removeAudio() {
-    setValues((current) => ({ ...current, audioGuide: null }));
+  function removeAudio(language: AppLanguage) {
+    setValues((current) => ({
+      ...current,
+      audioUrl: { ...current.audioUrl, [language]: '' },
+      ...(language === 'en' ? { audioGuide: null } : {}),
+    }));
   }
 
   return (
@@ -328,12 +377,27 @@ function AttractionEditor({
           placeholder="Attraction name"
           value={values.name}
         />
+        <Text style={styles.label}>Descriptions by language</Text>
         <AdminField
-          label="Description"
+          label="English description"
           multiline
-          onChangeText={(value) => updateField('description', value)}
-          placeholder="Describe this attraction..."
-          value={values.description}
+          onChangeText={(value) => updateDescription('en', value)}
+          placeholder="Describe this attraction in English..."
+          value={values.description.en}
+        />
+        <AdminField
+          label="Description en français"
+          multiline
+          onChangeText={(value) => updateDescription('fr', value)}
+          placeholder="Décrivez cette attraction en français..."
+          value={values.description.fr}
+        />
+        <AdminField
+          label="中文介绍"
+          multiline
+          onChangeText={(value) => updateDescription('zh', value)}
+          placeholder="请用中文介绍这个景点…"
+          value={values.description.zh}
         />
         <AdminField
           keyboardType="number-pad"
@@ -374,48 +438,58 @@ function AttractionEditor({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Audio Guide Files</Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isBusy}
-            onPress={() => void uploadAudio()}
-            style={styles.uploadButton}>
-            {isBusy ? (
-              <ActivityIndicator color={adminColors.rust} />
-            ) : (
-              <Text style={styles.uploadText}>⇧  Upload New Audio Chapter</Text>
-            )}
-          </Pressable>
-          {values.audioGuide ? (
-            <View style={styles.audioRow}>
-              <Text numberOfLines={1} style={styles.audioName}>
-                {values.audioGuide.name}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                disabled={isBusy}
-                onPress={() => {
-                  void Linking.openURL(values.audioGuide!.url).catch((openError: unknown) => {
-                    setValidationMessage(
-                      openError instanceof Error
-                        ? openError.message
-                        : 'Could not open the audio file.',
-                    );
-                  });
-                }}
-                style={styles.removeAudio}>
-                <Text style={styles.playAudioText}>Play</Text>
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Remove audio guide"
-                accessibilityRole="button"
-                disabled={isBusy}
-                onPress={removeAudio}
-                style={styles.removeAudio}>
-                <Text style={styles.removeAudioText}>Remove</Text>
-              </Pressable>
+          <Text style={styles.label}>Audio guides by language</Text>
+          {AUDIO_LANGUAGES.map(({ code, label }) => (
+            <View key={code} style={styles.localizedAudioGroup}>
+              <AdminField
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                label={`${label} audio guide URL`}
+                onChangeText={(value) => updateAudioUrl(code, value)}
+                placeholder="https://..."
+                value={values.audioUrl[code]}
+              />
+              <View style={styles.audioActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isBusy}
+                  onPress={() => void uploadAudio(code)}
+                  style={styles.uploadButton}>
+                  <Text style={styles.uploadText}>
+                    {isBusy ? 'Uploading…' : `Upload ${label} Audio`}
+                  </Text>
+                </Pressable>
+                {values.audioUrl[code] ? (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={isBusy}
+                      onPress={() => {
+                        void Linking.openURL(values.audioUrl[code]).catch((openError: unknown) => {
+                          setValidationMessage(
+                            openError instanceof Error
+                              ? openError.message
+                              : 'Could not open the audio file.',
+                          );
+                        });
+                      }}
+                      style={styles.removeAudio}>
+                      <Text style={styles.playAudioText}>Play</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel={`Remove ${label} audio guide`}
+                      accessibilityRole="button"
+                      disabled={isBusy}
+                      onPress={() => removeAudio(code)}
+                      style={styles.removeAudio}>
+                      <Text style={styles.removeAudioText}>Remove</Text>
+                    </Pressable>
+                  </>
+                ) : null}
+              </View>
             </View>
-          ) : null}
+          ))}
         </View>
 
         <AdminField
@@ -432,6 +506,18 @@ function AttractionEditor({
 
 function isOptionalPositiveInteger(value: string): boolean {
   return value.trim() === '' || (/^\d+$/.test(value.trim()) && Number(value) > 0);
+}
+
+function isValidAudioUrl(value: string): boolean {
+  if (!value.trim()) {
+    return true;
+  }
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
 }
 
 function getContentType(provided: string | null | undefined, name: string, fallback: string) {
@@ -459,6 +545,19 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 36,
     gap: 17,
+  },
+  localizedAudioGroup: {
+    gap: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: adminColors.line,
+    borderRadius: 8,
+    backgroundColor: adminColors.surface,
+  },
+  audioActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   centered: {
     flex: 1,

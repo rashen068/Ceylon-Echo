@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   LayoutAnimation,
   Pressable,
   Platform,
@@ -18,7 +19,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  downloadOfflineGuide,
+  getOfflineGuides,
+} from '@/features/tourist/offline-guides';
 import { requireFirestore } from '@/lib/firebase';
+import { useLanguage } from '@/context/LanguageContext';
+import { getLocalizedAudioUrl, getLocalizedText } from '@/lib/localized-attraction';
 
 const colors = {
   background: '#F8F6F1',
@@ -74,6 +81,7 @@ function formatChapterCount(value: unknown): string {
 }
 
 export default function AttractionDetailScreen() {
+  const { language, t } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -81,6 +89,7 @@ export default function AttractionDetailScreen() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [attraction, setAttraction] = useState<AttractionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -90,6 +99,70 @@ export default function AttractionDetailScreen() {
     }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsExpanded((expanded) => !expanded);
+  }
+
+  async function handleDownload() {
+    if (!attraction?.audioUrl || !id || isDownloading) {
+      if (!attraction?.audioUrl) {
+        Alert.alert('Download unavailable', 'This attraction does not have an audio guide yet.');
+      }
+      return;
+    }
+
+    Alert.alert('Downloading', 'Saving audio guide for offline use...');
+    setIsDownloading(true);
+    try {
+      await downloadOfflineGuide({
+        id,
+        title: attraction.title,
+        category: attraction.category,
+        imageUrl: attraction.imageUrl,
+        audioUrl: attraction.audioUrl,
+      });
+      Alert.alert(
+        'Success',
+        'Audio guide downloaded successfully! You can now listen offline.',
+      );
+    } catch (downloadError) {
+      Alert.alert(
+        'Download failed',
+        downloadError instanceof Error
+          ? downloadError.message
+          : 'Could not download the audio guide. Please try again.',
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
+  async function handlePlayAudio() {
+    if (!attraction?.audioUrl || !id) {
+      Alert.alert('Audio unavailable', 'This attraction does not have an audio guide yet.');
+      return;
+    }
+
+    try {
+      const offlineGuide = (await getOfflineGuides()).find(
+        (guide) => guide.id === id && guide.audioUrl === attraction.audioUrl,
+      );
+      router.push({
+        pathname: '/player',
+        params: {
+          audioUrl: attraction.audioUrl,
+          localAudioUrl: offlineGuide?.localUri ?? '',
+          title: `${attraction.title} Audio Guide - Chapter 1`,
+          subtitle: attraction.category,
+          imageUrl: attraction.imageUrl ?? '',
+        },
+      });
+    } catch (offlineError) {
+      Alert.alert(
+        'Could not open audio',
+        offlineError instanceof Error
+          ? offlineError.message
+          : 'Could not check saved audio. Please try again.',
+      );
+    }
   }
 
   useEffect(() => {
@@ -114,19 +187,24 @@ export default function AttractionDetailScreen() {
         const firstPhoto = photos.find(isMediaWithUrl);
         const audioGuide = isMediaWithUrl(data.audioGuide) ? data.audioGuide : null;
         const chapters = Array.isArray(data.chapters) ? data.chapters.length : undefined;
+        const legacyAudioUrl = getText(data.audioUrl);
 
         if (isActive) {
           setAttraction({
             title: getText(data.name) || getText(data.title) || 'Untitled attraction',
             category: getText(data.category) || 'Heritage Site',
             location: getText(data.location) || 'Location not provided',
-            description: getText(data.description) || 'No description available.',
+            description:
+              getLocalizedText(data.description, language) ||
+              t('noDescription'),
             imageUrl:
               getText(data.imageUrl) ||
               getText(data.image) ||
               firstPhoto?.url ||
               null,
-            audioUrl: audioGuide?.url || getText(data.audioUrl) || null,
+            audioUrl:
+              getLocalizedAudioUrl(data.audioUrl, language, audioGuide?.url ?? legacyAudioUrl) ||
+              null,
             duration: formatDuration(data.duration ?? data.durationMinutes ?? data.durationMins),
             chapterCount: formatChapterCount(
               data.chapterCount ?? data.chaptersCount ?? chapters,
@@ -152,7 +230,7 @@ export default function AttractionDetailScreen() {
     return () => {
       isActive = false;
     };
-  }, [id, retryCount]);
+  }, [id, language, retryCount, t]);
 
   if (isLoading) {
     return (
@@ -262,18 +340,13 @@ export default function AttractionDetailScreen() {
 
           <Pressable
             accessibilityRole="button"
-            onPress={() =>
-              router.push({
-                pathname: '/player',
-                params: {
-                  audioUrl: attraction.audioUrl ?? '',
-                  title: `${attraction.title} Audio Guide - Chapter 1`,
-                  subtitle: attraction.category,
-                  imageUrl: attraction.imageUrl ?? '',
-                },
-              })
-            }
-            style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}>
+            disabled={!attraction.audioUrl || isDownloading}
+            onPress={() => void handlePlayAudio()}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.pressed,
+              (!attraction.audioUrl || isDownloading) && styles.disabled,
+            ]}>
             <Feather color={colors.white} name="play" size={17} />
             <Text style={styles.playButtonText}>Play Audio Guide</Text>
           </Pressable>
@@ -294,10 +367,17 @@ export default function AttractionDetailScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/downloads')}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+              disabled={!attraction.audioUrl || isDownloading}
+              onPress={() => void handleDownload()}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.pressed,
+                (!attraction.audioUrl || isDownloading) && styles.disabled,
+              ]}>
               <Feather color={colors.ink} name="download" size={15} />
-              <Text style={styles.secondaryButtonText}>Download</Text>
+              <Text style={styles.secondaryButtonText}>
+                {isDownloading ? 'Downloading…' : 'Download'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -520,5 +600,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  disabled: {
+    opacity: 0.55,
   },
 });

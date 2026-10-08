@@ -203,7 +203,7 @@ function AuthenticatedProfileScreen() {
   }
 
   const email = profile?.email ?? user?.email ?? '';
-  const name = profile?.name || user?.displayName || email.split('@')[0] || 'Traveller';
+  const name = profile?.name || user?.displayName || email.split('@')[0] || t('traveller');
   const initials = name
     .split(/\s+/)
     .map((part) => part[0])

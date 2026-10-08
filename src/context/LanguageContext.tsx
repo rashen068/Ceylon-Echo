@@ -10,10 +10,14 @@ import {
 
 import en from '@/locales/en.json';
 import fr from '@/locales/fr.json';
-import ta from '@/locales/ta.json';
+import zh from '@/locales/zh.json';
 import { getSavedLanguage, saveLanguage, type AppLanguage } from '@/lib/language-preference';
 
-const translations = { en, fr, ta };
+const translations: Record<AppLanguage, Partial<Record<TranslationKey, string>>> = {
+  en,
+  fr,
+  zh,
+};
 export type TranslationKey = keyof typeof en;
 
 type LanguageContextValue = {

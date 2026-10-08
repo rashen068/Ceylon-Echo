@@ -1,13 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
 import { router } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { DataMessage } from '@/components/data-message';
 import SriLankaMap from '@/components/sri-lanka-map';
 import type { MappedAttraction } from '@/components/sri-lanka-map.types';
 import { PrimaryButton, ScreenFrame, SectionHeading, TravelColors } from '@/components/travel-ui';
-import { useAttractions } from '@/hooks/use-attractions';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAttractions } from '@/hooks/use-attractions';
 
 export default function InteractiveMapScreen() {
   const { t } = useLanguage();

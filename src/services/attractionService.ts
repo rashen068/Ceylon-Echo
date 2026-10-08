@@ -1,6 +1,12 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 
+import {
+  normalizeLocalizedAudioUrls,
+  normalizeLocalizedText,
+  type LocalizedAudioUrls,
+  type LocalizedText,
+} from '@/lib/localized-attraction';
 import { requireFirestore } from '@/lib/firebase';
 
 export type UploadedMedia = {
@@ -15,7 +21,8 @@ export type Attraction = {
   id: string;
   name: string;
   category: string;
-  description: string;
+  description: LocalizedText;
+  audioUrl: LocalizedAudioUrls;
   location: string;
   durationMinutes: number | null;
   chapterCount: number | null;
@@ -60,10 +67,18 @@ export async function getAttractionsByIds(ids: string[]): Promise<Attraction[]> 
 }
 
 function parseAttraction(id: string, data: DocumentData): Attraction {
+  const legacyAudioUrl =
+    typeof data.audioGuide === 'object' &&
+    data.audioGuide !== null &&
+    'url' in data.audioGuide &&
+    typeof data.audioGuide.url === 'string'
+      ? data.audioGuide.url
+      : '';
   if (
     typeof data.name !== 'string' ||
     typeof data.category !== 'string' ||
-    typeof data.description !== 'string' ||
+    (typeof data.description !== 'string' &&
+      (typeof data.description !== 'object' || data.description === null)) ||
     typeof data.location !== 'string' ||
     !isNullableNumber(data.durationMinutes ?? null) ||
     !isNullableNumber(data.chapterCount ?? null) ||
@@ -71,7 +86,9 @@ function parseAttraction(id: string, data: DocumentData): Attraction {
     !isNullableNumber(data.longitude) ||
     !Array.isArray(data.photos) ||
     !data.photos.every(isUploadedMedia) ||
-    (data.audioGuide !== null && !isUploadedMedia(data.audioGuide))
+    (data.audioGuide !== null &&
+      data.audioGuide !== undefined &&
+      !isUploadedMedia(data.audioGuide))
   ) {
     throw new Error(`Attraction "${id}" has invalid Firestore data.`);
   }
@@ -80,14 +97,15 @@ function parseAttraction(id: string, data: DocumentData): Attraction {
     id,
     name: data.name,
     category: data.category,
-    description: data.description,
+    description: normalizeLocalizedText(data.description),
+    audioUrl: normalizeLocalizedAudioUrls(data.audioUrl, legacyAudioUrl),
     location: data.location,
     durationMinutes: data.durationMinutes ?? null,
     chapterCount: data.chapterCount ?? null,
     latitude: data.latitude,
     longitude: data.longitude,
     photos: data.photos,
-    audioGuide: data.audioGuide,
+    audioGuide: data.audioGuide ?? null,
   };
 }
 

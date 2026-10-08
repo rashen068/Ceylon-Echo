@@ -19,13 +19,13 @@ import type { AppLanguage } from '@/lib/language-preference';
 
 const languageOptions: {
   code: AppLanguage;
-  label: string;
+  labelKey: 'languageNameEnglish' | 'languageNameFrench' | 'languageNameChinese';
   flag: string;
-  detailKey: 'languageEnglishDetail' | 'languageFrenchDetail' | 'languageTamilDetail';
+  detailKey: 'languageEnglishDetail' | 'languageFrenchDetail' | 'languageChineseDetail';
 }[] = [
-  { code: 'en', label: 'English', flag: '🇬🇧', detailKey: 'languageEnglishDetail' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷', detailKey: 'languageFrenchDetail' },
-  { code: 'ta', label: 'தமிழ்', flag: '🇱🇰', detailKey: 'languageTamilDetail' },
+  { code: 'en', labelKey: 'languageNameEnglish', flag: '🇬🇧', detailKey: 'languageEnglishDetail' },
+  { code: 'fr', labelKey: 'languageNameFrench', flag: '🇫🇷', detailKey: 'languageFrenchDetail' },
+  { code: 'zh', labelKey: 'languageNameChinese', flag: '🇨🇳', detailKey: 'languageChineseDetail' },
 ];
 
 export default function LanguageScreen() {
@@ -116,7 +116,7 @@ export default function LanguageScreen() {
             const isSelected = selected === language.code;
             return (
               <Animated.View
-                key={language.label}
+                key={language.code}
                 layout={LinearTransition.springify().damping(18)}
                 entering={FadeInUp.duration(400).delay(180 + index * 70)}>
                 <Pressable
@@ -146,7 +146,7 @@ export default function LanguageScreen() {
                   <Text style={styles.flag}>{language.flag}</Text>
                   <View style={styles.languageCopy}>
                     <Text style={[styles.languageText, isSelected && styles.languageTextSelected]}>
-                      {language.label}
+                      {t(language.labelKey)}
                     </Text>
                     <Text style={[styles.languageDetail, isSelected && styles.languageDetailSelected]}>
                       {t(language.detailKey)}

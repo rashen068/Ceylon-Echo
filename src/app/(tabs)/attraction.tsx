@@ -15,10 +15,11 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAttraction, useAttractions } from '@/hooks/use-attractions';
+import { getLocalizedAudioUrl, getLocalizedText } from '@/lib/localized-attraction';
 import { getSavedAttractionIds, removeSavedAttraction, saveAttraction } from '@/services/userService';
 
 export default function AttractionScreen() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user } = useAuth();
   const { attractions, isLoading: isLoadingAttractions, error: attractionsError } = useAttractions();
@@ -35,6 +36,12 @@ export default function AttractionScreen() {
     savedState?.userId === user?.uid &&
     savedState?.attractionId === selectedId &&
     savedState?.saved === true;
+  const audioUrl = attraction
+    ? getLocalizedAudioUrl(attraction.audioUrl, language, attraction.audioGuide?.url ?? '')
+    : '';
+  const description = attraction
+    ? getLocalizedText(attraction.description, language, t('noDescription'))
+    : '';
 
   useEffect(() => {
     let active = true;
@@ -142,7 +149,7 @@ export default function AttractionScreen() {
         ) : null}
       </View>
       <View style={styles.buttonRow}>
-        {attraction.audioGuide ? (
+        {audioUrl ? (
           <PrimaryButton
             title={t('playAudioGuide')}
             onPress={() =>
@@ -169,7 +176,7 @@ export default function AttractionScreen() {
           onPress={() => router.push('/(tabs)/map')}
           style={styles.flexButton}
         />
-        {attraction.audioGuide ? (
+        {audioUrl ? (
           <SoftButton
             title={t('download')}
             onPress={() => router.push('/(tabs)/downloads')}
@@ -178,7 +185,7 @@ export default function AttractionScreen() {
         ) : null}
       </View>
       <Text style={styles.sectionTitle}>{t('aboutThisPlace')}</Text>
-      <Text style={styles.description}>{attraction.description || t('noDescription')}</Text>
+      <Text style={styles.description}>{description}</Text>
       <DetailRow
         icon="⌖"
         title={attraction.location}

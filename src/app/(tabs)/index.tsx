@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { getLocalizedText } from '@/lib/localized-attraction';
 import { requireFirestore } from '@/lib/firebase';
 
 const colors = {
@@ -39,7 +40,7 @@ type FeaturedAttraction = {
 };
 
 export default function HomeScreen() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [attraction, setAttraction] = useState<FeaturedAttraction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -73,7 +74,8 @@ export default function HomeScreen() {
               title: getText(data.name) || t('untitledAttraction'),
               category: getText(data.category) || t('heritageSite'),
               location: getText(data.location) || t('locationNotProvided'),
-              description: getText(data.description) || t('featuredAttractionDescription'),
+              description:
+                getLocalizedText(data.description, language) || t('featuredAttractionDescription'),
               imageUrl: photo?.url ?? (getText(data.imageUrl) || null),
             });
           }
@@ -96,7 +98,7 @@ export default function HomeScreen() {
       return () => {
         isActive = false;
       };
-    }, [t]),
+    }, [language, t]),
   );
 
   return (

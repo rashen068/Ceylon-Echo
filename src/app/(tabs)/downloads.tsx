@@ -23,6 +23,7 @@ import {
 } from '@/features/tourist/offline-guides';
 import { requireFirestore } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageContext';
+import { getLocalizedAudioUrl } from '@/lib/localized-attraction';
 
 type Guide = {
   id: string;
@@ -45,7 +46,7 @@ const colors = {
 };
 
 export default function DownloadsScreen() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [offlineGuides, setOfflineGuides] = useState<OfflineGuide[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +79,8 @@ export default function DownloadsScreen() {
       const availableGuides = snapshot.docs.flatMap((item) => {
         const data = item.data();
         const media = isMediaWithUrl(data.audioGuide) ? data.audioGuide : null;
-        if (!media) {
+        const audioUrl = getLocalizedAudioUrl(data.audioUrl, language, media?.url ?? '');
+        if (!audioUrl) {
           return [];
         }
         const firstPhoto = Array.isArray(data.photos)
@@ -89,7 +91,7 @@ export default function DownloadsScreen() {
           title: getText(data.name) || t('untitledAttraction'),
           category: getText(data.category) || t('audioGuide'),
           imageUrl: firstPhoto?.url ?? null,
-          audioUrl: media.url,
+          audioUrl,
           isAvailableOnline: true,
         }];
       });
@@ -113,7 +115,7 @@ export default function DownloadsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [language, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -122,12 +124,15 @@ export default function DownloadsScreen() {
   );
 
   async function handleGuideAction(guide: Guide) {
-    const offlineGuide = offlineGuides.find((item) => item.id === guide.id);
+    const offlineGuide = offlineGuides.find(
+      (item) => item.id === guide.id && item.audioUrl === guide.audioUrl,
+    );
     if (offlineGuide) {
       router.push({
         pathname: '/player',
         params: {
-          audioUrl: offlineGuide.localUri,
+          audioUrl: offlineGuide.audioUrl,
+          localAudioUrl: offlineGuide.localUri,
           title: `${offlineGuide.title} ${t('audioGuide')}`,
           subtitle: offlineGuide.category,
           imageUrl: offlineGuide.imageUrl ?? '',

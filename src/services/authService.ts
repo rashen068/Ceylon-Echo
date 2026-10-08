@@ -88,6 +88,8 @@ export function getAuthErrorMessage(error: unknown): string {
       case 'auth/too-many-requests':
         return 'Too many attempts. Wait a moment and try again.';
       case 'auth/network-request-failed':
+      case 'unavailable':
+      case 'deadline-exceeded':
         return 'A network error interrupted authentication. Check your connection and retry.';
       case 'permission-denied':
         return 'Firebase rejected the request. Check your Firestore security rules.';

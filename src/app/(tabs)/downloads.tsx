@@ -3,26 +3,28 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { DataMessage } from '@/components/data-message';
 import { DetailRow, ScreenFrame, SectionHeading, TravelColors } from '@/components/travel-ui';
+import { useLanguage } from '@/context/LanguageContext';
 import { useAttractions } from '@/hooks/use-attractions';
 
 export default function AudioGuidesScreen() {
+  const { t } = useLanguage();
   const { attractions, isLoading, error } = useAttractions();
   const audioAttractions = attractions.filter((attraction) => attraction.audioGuide !== null);
 
   return (
-    <ScreenFrame title="Audio Guides" subtitle="Listen to guides uploaded by Ceylon Echo curators.">
+    <ScreenFrame title={t('audioGuides')} subtitle={t('audioGuideDescription')}>
       <View style={styles.storageCard}>
         <View style={styles.storageHeader}>
-          <Text style={styles.storageTitle}>Available from Firebase Storage</Text>
-          <Text style={styles.storageSize}>{audioAttractions.length} guides</Text>
+          <Text style={styles.storageTitle}>{t('availableFromStorage')}</Text>
+          <Text style={styles.storageSize}>{t('guidesCount', { count: audioAttractions.length })}</Text>
         </View>
-        <Text style={styles.storageNote}>Audio opens externally and requires an internet connection.</Text>
+        <Text style={styles.storageNote}>{t('audioInternetRequired')}</Text>
       </View>
-      <SectionHeading title="Available guides" />
-      {isLoading ? <DataMessage isLoading message="Loading audio guides…" /> : null}
+      <SectionHeading title={t('availableAudioGuides')} />
+      {isLoading ? <DataMessage isLoading message={t('loadingAudioGuides')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && audioAttractions.length === 0 ? (
-        <DataMessage message="No audio guides have been uploaded yet." />
+        <DataMessage message={t('noGuidesUploaded')} />
       ) : null}
       {audioAttractions.map((attraction) => (
         <DetailRow

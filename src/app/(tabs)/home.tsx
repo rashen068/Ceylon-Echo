@@ -12,8 +12,10 @@ import {
   SectionHeading,
 } from '@/components/travel-ui';
 import { useAttractions } from '@/hooks/use-attractions';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function HomeScreen() {
+  const { t } = useLanguage();
   const { attractions, isLoading, error } = useAttractions();
   const [search, setSearch] = useState('');
   const filteredAttractions = useMemo(
@@ -28,15 +30,15 @@ export default function HomeScreen() {
 
   return (
     <ScreenFrame
-      title="Discover Sri Lanka"
-      subtitle="Stories, places and experiences worth remembering."
+      title={t('discoverSriLankaTitle')}
+      subtitle={t('discoverSriLankaSubtitle')}
       onProfile={() => router.push('/(tabs)/profile')}>
       <View style={styles.search}>
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
-          accessibilityLabel="Search destinations"
+          accessibilityLabel={t('searchDestinations')}
           onChangeText={setSearch}
-          placeholder="Search destinations..."
+          placeholder={t('searchDestinationsPlaceholder')}
           placeholderTextColor="#8b9189"
           style={styles.searchInput}
           value={search}
@@ -47,11 +49,11 @@ export default function HomeScreen() {
       <View style={styles.hero}>
         <LandscapeArt tone="forest" style={styles.heroArt} />
         <View style={styles.heroOverlay}>
-          <Text style={styles.heroEyebrow}>YOUR ISLAND, YOUR WAY</Text>
-          <Text style={styles.heroTitle}>Find your next story</Text>
-          <Text style={styles.heroCopy}>Explore the places that make Sri Lanka unforgettable.</Text>
+          <Text style={styles.heroEyebrow}>{t('yourIslandYourWay')}</Text>
+          <Text style={styles.heroTitle}>{t('findNextStory')}</Text>
+          <Text style={styles.heroCopy}>{t('homeDescription')}</Text>
           <PrimaryButton
-            title="Explore the map"
+            title={t('exploreMap')}
             onPress={() => router.push('/(tabs)/map')}
             style={styles.heroButton}
           />
@@ -59,8 +61,8 @@ export default function HomeScreen() {
       </View>
 
       <SectionHeading
-        title="Nearby Attractions"
-        action="See all"
+        title={t('nearbyAttractions')}
+        action={t('seeAll')}
         onPress={() => router.push('/(tabs)/nearby')}
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
@@ -79,15 +81,15 @@ export default function HomeScreen() {
           />
         ))}
       </ScrollView>
-      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {isLoading ? <DataMessage isLoading message={t('loadingAttractions')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && filteredAttractions.length === 0 ? (
-        <DataMessage message={search ? 'No attractions match your search.' : 'No attractions have been added yet.'} />
+        <DataMessage message={search ? t('noSearchResults') : t('noAttractionsYet')} />
       ) : null}
 
       <SectionHeading
-        title="Suggested Routes"
-        action="View routes"
+        title={t('suggestedRoutes')}
+        action={t('viewRoutes')}
         onPress={() => router.push('/(tabs)/suggested')}
       />
       <Pressable
@@ -95,18 +97,18 @@ export default function HomeScreen() {
         onPress={() => router.push('/(tabs)/suggested')}
         style={styles.routeCard}>
         <View style={styles.routeBadge}>
-          <Text style={styles.routeBadgeText}>3 DAYS · CULTURE</Text>
+          <Text style={styles.routeBadgeText}>{t('daysCulture')}</Text>
         </View>
-        <Text style={styles.routeTitle}>The Cultural Triangle</Text>
-        <Text style={styles.routeDescription}>Sigiriya · Dambulla · Polonnaruwa</Text>
-        <Text style={styles.routeArrow}>See your itinerary  →</Text>
+        <Text style={styles.routeTitle}>{t('culturalTriangle')}</Text>
+        <Text style={styles.routeDescription}>{t('sigiriyaDambullaPolonnaruwa')}</Text>
+        <Text style={styles.routeArrow}>{t('seeItinerary')}</Text>
       </Pressable>
 
       {filteredAttractions.length > 6 ? (
         <>
           <SectionHeading
-            title="More to explore"
-            action="See all"
+            title={t('moreToExplore')}
+            action={t('seeAll')}
             onPress={() => router.push('/(tabs)/explore')}
           />
           {filteredAttractions.slice(6, 8).map((item) => (

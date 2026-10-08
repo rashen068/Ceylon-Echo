@@ -6,24 +6,80 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { onboardingNavigation } from '@/navigation/app-navigation';
 
 export default function WelcomePage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, role, isRoleLoading, roleError, refreshUserRole } = useAuth();
+  const {
+    isReady: languageReady,
+    hasSelectedLanguage,
+    initializationError,
+    retryInitialization,
+    t,
+  } = useLanguage();
   const { height } = useWindowDimensions();
   const [imageFailed, setImageFailed] = useState(false);
+  const [roleRetryError, setRoleRetryError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user && !isLoading) {
-      router.replace('/(tabs)/home');
+    if (!languageReady) return;
+    if (!hasSelectedLanguage) {
+      router.replace('/language');
+    } else if (user && !isLoading && !isRoleLoading && !roleError) {
+      router.replace(role === 'admin' ? '/admin/attractions' : '/(tabs)/home');
     }
-  }, [isLoading, user]);
+  }, [hasSelectedLanguage, isLoading, isRoleLoading, languageReady, roleError, role, user]);
+
+  if (!languageReady) return null;
+
+  if (initializationError) {
+    return (
+      <SafeAreaView style={styles.errorScreen}>
+        <Text style={styles.errorText}>{initializationError}</Text>
+        <Pressable accessibilityRole="button" onPress={retryInitialization}>
+          <Text style={styles.retryText}>{t('languageRetry')}</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
+  if (user && roleError) {
+    return (
+      <SafeAreaView style={styles.errorScreen}>
+        <Text style={styles.errorText}>
+          {t('roleVerificationFailed')}: {roleRetryError ?? roleError}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isRoleLoading }}
+          disabled={isRoleLoading}
+          onPress={() => {
+            setRoleRetryError(null);
+            void refreshUserRole().catch((error: unknown) => {
+              setRoleRetryError(
+                error instanceof Error ? error.message : 'Could not verify your account role.',
+              );
+            });
+          }}>
+          <Text style={styles.retryText}>{t('languageRetry')}</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
+  if (
+    !hasSelectedLanguage ||
+    isLoading ||
+    isRoleLoading ||
+    (user && !isLoading)
+  ) return null;
 
   return (
     <View style={styles.screen}>
       {!imageFailed ? (
         <Image
-          accessibilityLabel="Ancient Sri Lankan stone temple"
+          accessibilityLabel={t('sigiriyaImageDescription')}
           contentFit="cover"
           onError={() => setImageFailed(true)}
           source={require('../../assets/images/onboarding(8).jpg')}
@@ -45,7 +101,7 @@ export default function WelcomePage() {
             accessibilityRole="button"
             onPress={onboardingNavigation.begin}
             style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>{t('skip')}</Text>
           </Pressable>
         </Animated.View>
 
@@ -54,24 +110,21 @@ export default function WelcomePage() {
           style={[styles.welcomeCopy, { paddingBottom: Math.max(height * 0.045, 24) }]}>
           <View style={styles.photoCaption}>
             <View style={styles.captionRule} />
-            <Text style={styles.eyebrow}>AN ISLAND OF STORIES</Text>
+            <Text style={styles.eyebrow}>{t('islandOfStories')}</Text>
           </View>
-          <Text style={styles.welcomeTitle}>Discover the Soul of Sri Lanka</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Find your way through living culture, ancient heritage, wild nature and unforgettable
-            island experiences.
-          </Text>
-          <View style={styles.pageIndicators} accessibilityLabel="Onboarding page 1 of 1">
+          <Text style={styles.welcomeTitle}>{t('discoverSriLanka')}</Text>
+          <Text style={styles.welcomeSubtitle}>{t('welcomeDescription')}</Text>
+          <View style={styles.pageIndicators} accessibilityLabel={`${t('getStarted')} · 1 / 1`}>
             <View style={styles.activeDot} />
           </View>
           <Pressable
             accessibilityRole="button"
             onPress={onboardingNavigation.begin}
             style={({ pressed }) => [styles.startButton, pressed && styles.pressed]}>
-            <Text style={styles.startButtonText}>Get Started</Text>
+            <Text style={styles.startButtonText}>{t('getStarted')}</Text>
             <Text style={styles.buttonArrow}>→</Text>
           </Pressable>
-          <Text style={styles.footer}>A more meaningful way to explore</Text>
+          <Text style={styles.footer}>{t('meaningfulExplore')}</Text>
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -79,6 +132,24 @@ export default function WelcomePage() {
 }
 
 const styles = StyleSheet.create({
+  errorScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: '#f8f7f2',
+  },
+  errorText: {
+    color: '#9b4d32',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  retryText: {
+    marginTop: 16,
+    color: '#285944',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   screen: {
     flex: 1,
     overflow: 'hidden',

@@ -65,6 +65,16 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   };
 }
 
+export async function getUserRole(uid: string): Promise<'admin' | 'user' | null> {
+  const snapshot = await getDoc(doc(requireFirestore(), 'users', uid));
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  const role: unknown = snapshot.data().role;
+  return role === 'admin' || role === 'user' ? role : null;
+}
+
 export async function updateUserProfile(
   uid: string,
   updates: Partial<Pick<UserProfile, 'name' | 'profileImage' | 'interests'>>,

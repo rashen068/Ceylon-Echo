@@ -5,10 +5,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataMessage } from '@/components/data-message';
 import { AttractionCard, ScreenFrame, TravelColors } from '@/components/travel-ui';
 import { useAttractions } from '@/hooks/use-attractions';
+import { useLanguage } from '@/context/LanguageContext';
 
-const filters = ['All', 'Heritage', 'Nature', 'Temple'];
+const filters = ['All', 'Heritage', 'Nature', 'Temple'] as const;
+const filterTranslationKeys = {
+  All: 'all',
+  Heritage: 'heritage',
+  Nature: 'nature',
+  Temple: 'temple',
+} as const;
 
 export default function NearbyScreen() {
+  const { t } = useLanguage();
   const [selected, setSelected] = useState('All');
   const { attractions, isLoading, error } = useAttractions();
   const filteredAttractions = useMemo(
@@ -21,12 +29,12 @@ export default function NearbyScreen() {
   );
 
   return (
-    <ScreenFrame title="Nearby Attractions" subtitle="Wonderful places close to your location.">
+    <ScreenFrame title={t('nearbyAttractions')} subtitle={t('nearbySubtitle')}>
       <View style={styles.location}>
         <Text style={styles.locationPin}>⌖</Text>
         <View style={styles.locationCopy}>
-          <Text style={styles.locationTitle}>Across Sri Lanka</Text>
-          <Text style={styles.locationSubtitle}>Browse admin-curated attractions</Text>
+          <Text style={styles.locationTitle}>{t('acrossSriLanka')}</Text>
+          <Text style={styles.locationSubtitle}>{t('browseCuratedAttractions')}</Text>
         </View>
       </View>
       <View style={styles.filters}>
@@ -39,15 +47,17 @@ export default function NearbyScreen() {
               accessibilityState={{ selected: active }}
               onPress={() => setSelected(filter)}
               style={[styles.filter, active && styles.filterActive]}>
-              <Text style={[styles.filterText, active && styles.filterTextActive]}>{filter}</Text>
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {t(filterTranslationKeys[filter])}
+              </Text>
             </Pressable>
           );
         })}
       </View>
-      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {isLoading ? <DataMessage isLoading message={t('loadingAttractions')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && filteredAttractions.length === 0 ? (
-        <DataMessage message="No attractions match this filter." />
+        <DataMessage message={t('noNearbyAttractions')} />
       ) : null}
       {filteredAttractions.map((item, index) => (
         <AttractionCard

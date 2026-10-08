@@ -13,6 +13,8 @@ import {
 import { router, usePathname } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 export const TravelColors = {
   background: '#fbfaf5',
   surface: '#ffffff',
@@ -41,6 +43,7 @@ export function ScreenFrame({
 }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const activeTab = pathname.includes('explore')
     ? 'explore'
     : pathname.includes('profile')
@@ -64,7 +67,7 @@ export function ScreenFrame({
           {onProfile ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open user profile"
+              accessibilityLabel={t('profile')}
               onPress={onProfile}
               style={styles.profileButton}>
               <Text style={styles.profileButtonText}>A</Text>
@@ -79,19 +82,19 @@ export function ScreenFrame({
         <BottomBarButton
           active={activeTab === 'home'}
           icon="⌂"
-          label="Home"
+          label={t('home')}
           onPress={() => router.replace('/(tabs)/home')}
         />
         <BottomBarButton
           active={activeTab === 'explore'}
           icon="⌕"
-          label="Explore"
+          label={t('explore')}
           onPress={() => router.replace('/(tabs)/explore')}
         />
         <BottomBarButton
           active={activeTab === 'profile'}
           icon="○"
-          label="Profile"
+          label={t('profile')}
           onPress={() => router.replace('/(tabs)/profile')}
         />
       </View>

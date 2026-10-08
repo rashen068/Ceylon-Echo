@@ -21,6 +21,7 @@ import {
   TravelColors,
 } from '@/components/travel-ui';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import type { Attraction } from '@/services/attractionService';
 import { getAttractionsByIds } from '@/services/attractionService';
 import { getSavedAttractionIds, getUserProfile, updateUserProfile } from '@/services/userService';
@@ -37,6 +38,7 @@ export default function ProfileScreen() {
 
 function AuthenticatedProfileScreen() {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [savedAttractions, setSavedAttractions] = useState<Attraction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,7 +150,7 @@ function AuthenticatedProfileScreen() {
     }
     const nameToSave = editedName.trim();
     if (!nameToSave) {
-      setError('Please enter your name before saving.');
+      setError(t('yourNameRequired'));
       return;
     }
 
@@ -160,7 +162,7 @@ function AuthenticatedProfileScreen() {
         const fileName = safeFileName(pendingPhoto.fileName ?? 'profile-image.jpg');
         const contentType = pendingPhoto.mimeType ?? 'image/jpeg';
         if (!/^image\/(jpeg|jpg|png|webp|heic|heif)$/i.test(contentType)) {
-          setError('Choose a JPG, PNG, WebP, or HEIC image for your profile photo.');
+          setError(t('invalidProfilePhoto'));
           return;
         }
         const uploaded = await uploadMedia(
@@ -215,8 +217,8 @@ function AuthenticatedProfileScreen() {
   const showProfileImage = profileImage !== null && failedImageUri !== profileImage;
 
   return (
-    <ScreenFrame title="Your Profile" subtitle="Your saved discoveries, all in one place.">
-      {isLoading ? <DataMessage isLoading message="Loading your profile…" /> : null}
+    <ScreenFrame title={t('profileTitle')} subtitle={t('profileSubtitle')}>
+      {isLoading ? <DataMessage isLoading message={t('loadingProfile')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       <View style={styles.profileCard}>
         <View style={styles.avatarWrap}>
@@ -235,7 +237,7 @@ function AuthenticatedProfileScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Change profile photo"
+            accessibilityLabel={t('changeProfilePhoto')}
             disabled={isSelectingPhoto || isSaving || isLoading}
             onPress={() => void selectProfilePhoto()}
             style={({ pressed }) => [
@@ -253,13 +255,13 @@ function AuthenticatedProfileScreen() {
         <View style={styles.profileCopy}>
           {isEditing ? (
             <TextInput
-              accessibilityLabel="Profile name"
+              accessibilityLabel={t('profileName')}
               autoCapitalize="words"
               autoCorrect={false}
               editable={!isSaving}
               maxLength={100}
               onChangeText={setEditedName}
-              placeholder="Your name"
+              placeholder={t('yourName')}
               placeholderTextColor="#f5ded3"
               returnKeyType="done"
               style={styles.nameInput}
@@ -270,7 +272,7 @@ function AuthenticatedProfileScreen() {
           )}
           <Text style={styles.email}>{email}</Text>
           <Text style={styles.member}>
-            {memberYear ? `Explorer since ${memberYear}` : 'Ceylon Echo explorer'}
+            {memberYear ? t('explorerSince', { year: memberYear }) : t('ceylonExplorer')}
           </Text>
         </View>
         {!isEditing ? (
@@ -283,7 +285,7 @@ function AuthenticatedProfileScreen() {
               pressed && styles.pressed,
               (isLoading || isSaving) && styles.disabled,
             ]}>
-            <Text style={styles.editProfileText}>Edit Profile</Text>
+            <Text style={styles.editProfileText}>{t('editProfile')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -298,7 +300,7 @@ function AuthenticatedProfileScreen() {
               pressed && styles.pressed,
               isSaving && styles.disabled,
             ]}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{t('cancel')}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -312,15 +314,15 @@ function AuthenticatedProfileScreen() {
             {isSaving ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.saveText}>Save Changes</Text>
+              <Text style={styles.saveText}>{t('saveChanges')}</Text>
             )}
           </Pressable>
         </View>
       ) : null}
 
       <SectionHeading
-        title="Your Saved Places"
-        action="See all"
+        title={t('yourSavedPlaces')}
+        action={t('seeAll')}
         onPress={() => router.push('/(tabs)/bookmarks')}
       />
       {savedAttractions.length ? (
@@ -337,29 +339,33 @@ function AuthenticatedProfileScreen() {
           />
         ))
       ) : (
-        <Text style={styles.emptyNote}>Your saved attractions will appear here.</Text>
+        <Text style={styles.emptyNote}>{t('savedAttractionsAppear')}</Text>
       )}
 
       <SectionHeading
-        title="Audio Guides"
-        action="Downloads"
+        title={t('audioGuides')}
+        action={t('downloads')}
         onPress={() => router.push('/(tabs)/downloads')}
       />
       <DetailRow
         icon="♫"
-        title="Browse available audio guides"
-        subtitle="Open an attraction to see its audio guide."
+        title={t('browseAudioGuides')}
+        subtitle={t('openAttractionAudio')}
         trailing="›"
         onPress={() => router.push('/(tabs)/explore')}
       />
 
       <PrimaryButton
-        title="Edit travel preferences"
+        title={t('editTravelPreferences')}
         onPress={() => router.push('/preferences')}
         style={styles.preferencesButton}
       />
       <PrimaryButton
-        title={isSigningOut ? 'Signing out…' : 'Sign out'}
+        title={t('changeLanguage')}
+        onPress={() => router.push('/language')}
+      />
+      <PrimaryButton
+        title={isSigningOut ? t('signingOut') : t('signOut')}
         disabled={isSigningOut}
         onPress={() => void handleSignOut()}
         style={styles.signOutButton}

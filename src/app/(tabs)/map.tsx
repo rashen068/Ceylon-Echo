@@ -4,13 +4,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataMessage } from '@/components/data-message';
 import { PrimaryButton, ScreenFrame, SectionHeading, TravelColors } from '@/components/travel-ui';
 import { useAttractions } from '@/hooks/use-attractions';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function InteractiveMapScreen() {
+  const { t } = useLanguage();
   const { attractions, isLoading, error } = useAttractions();
   const mapAttractions = attractions.slice(0, 2);
 
   return (
-    <ScreenFrame title="Explore Map" subtitle="Discover remarkable places around you.">
+    <ScreenFrame title={t('mapTitle')} subtitle={t('mapSubtitle')}>
       <View style={styles.map}>
         <View style={styles.terrainOne} />
         <View style={styles.terrainTwo} />
@@ -50,15 +52,21 @@ export default function InteractiveMapScreen() {
           <Text style={styles.locateText}>◎</Text>
         </View>
         <View style={styles.mapLegend}>
-          <Text style={styles.legendTitle}>Cultural Triangle</Text>
-          <Text style={styles.legendSubtitle}>{attractions.length} attractions</Text>
+          <Text style={styles.legendTitle}>{t('culturalTriangle')}</Text>
+          <Text style={styles.legendSubtitle}>
+            {t('attractionsCount', { count: attractions.length })}
+          </Text>
         </View>
       </View>
-      {isLoading ? <DataMessage isLoading message="Loading map attractions…" /> : null}
+      {isLoading ? <DataMessage isLoading message={t('loadingMapAttractions')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
-      <SectionHeading title="Around this area" action="Nearby" onPress={() => router.push('/(tabs)/nearby')} />
+      <SectionHeading
+        title={t('aroundThisArea')}
+        action={t('nearby')}
+        onPress={() => router.push('/(tabs)/nearby')}
+      />
       {!isLoading && !error && attractions.length === 0 ? (
-        <DataMessage message="No attractions are available to show on the map." />
+        <DataMessage message={t('noMapAttractions')} />
       ) : null}
       {mapAttractions.map((item, index) => (
         <Pressable
@@ -78,7 +86,11 @@ export default function InteractiveMapScreen() {
           <Text style={styles.chevron}>›</Text>
         </Pressable>
       ))}
-      <PrimaryButton title="See nearby attractions" onPress={() => router.push('/(tabs)/nearby')} style={styles.button} />
+      <PrimaryButton
+        title={t('seeNearbyAttractions')}
+        onPress={() => router.push('/(tabs)/nearby')}
+        style={styles.button}
+      />
     </ScreenFrame>
   );
 }

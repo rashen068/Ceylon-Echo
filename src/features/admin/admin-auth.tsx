@@ -8,10 +8,10 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 
-import { auth, db, isFirebaseConfigured, requireAuth } from '@/lib/firebase';
+import { auth, isFirebaseConfigured, requireAuth } from '@/lib/firebase';
+import { getUserRole } from '@/services/userService';
 
 type AdminAuthValue = {
   user: User | null;
@@ -33,8 +33,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const currentAuth = auth;
-    const firestore = db;
-    if (!currentAuth || !firestore) {
+    if (!currentAuth) {
       return;
     }
 
@@ -56,9 +55,12 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
       setIsLoading(true);
       try {
-        const adminRecord = await getDoc(doc(firestore, 'admins', nextUser.uid));
+        const role = await getUserRole(nextUser.uid);
         if (mounted && eventId === authEventId) {
-          setIsAdmin(adminRecord.data()?.role === 'admin');
+          setIsAdmin(role === 'admin');
+          if (role !== 'admin') {
+            setError('This account does not have admin access.');
+          }
           setIsLoading(false);
         }
       } catch (authError) {
@@ -79,7 +81,12 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
-      await signInWithEmailAndPassword(requireAuth(), email.trim(), password);
+      const credential = await signInWithEmailAndPassword(requireAuth(), email.trim(), password);
+      const role = await getUserRole(credential.user.uid);
+      if (role !== 'admin') {
+        await signOut(requireAuth());
+        throw new Error('This account does not have admin access.');
+      }
     } catch (authError) {
       const message = getErrorMessage(authError);
       setError(message);
@@ -126,7 +133,11 @@ function getErrorMessage(error: unknown) {
       case 'auth/too-many-requests':
         return 'Too many attempts. Wait a moment and try again.';
       case 'permission-denied':
-        return 'Your account is not configured as an admin. Contact the project owner.';
+        return 'Could not verify your admin role. Check your connection and Firestore permissions.';
+      case 'auth/network-request-failed':
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return 'A network error interrupted admin verification. Check your connection and retry.';
       default:
         break;
     }

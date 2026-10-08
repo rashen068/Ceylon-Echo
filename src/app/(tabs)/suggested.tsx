@@ -2,20 +2,22 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { LandscapeArt, PrimaryButton, ScreenFrame, TravelColors } from '@/components/travel-ui';
+import { useLanguage } from '@/context/LanguageContext';
 
 const stops = [
-  { day: 'DAY 1', title: 'Sigiriya Ancient Fortress', detail: 'Sunrise climb · 2–3 hours' },
-  { day: 'DAY 1', title: 'Dambulla Cave Temple', detail: 'Golden Temple · 1–2 hours' },
-  { day: 'DAY 2', title: 'Polonnaruwa Ancient City', detail: 'Cycle the ancient ruins · 3 hours' },
-];
+  { day: 'dayOne', title: 'sigiriyaFortress', detail: 'sunriseClimb' },
+  { day: 'dayOne', title: 'dambullaTemple', detail: 'goldenTemple' },
+  { day: 'dayTwo', title: 'polonnaruwaCity', detail: 'cycleRuins' },
+] as const;
 
 export default function SuggestedRouteScreen() {
+  const { t } = useLanguage();
   return (
-    <ScreenFrame title="Suggested Route" subtitle="A thoughtful journey through Sri Lanka’s Cultural Triangle.">
+    <ScreenFrame title={t('suggestedRoute')} subtitle={t('routeDescription')}>
       <LandscapeArt tone="gold" style={styles.hero} />
       <View style={styles.routeSummary}>
-        <Text style={styles.routeTitle}>The Cultural Triangle</Text>
-        <Text style={styles.routeSub}>3 days · 3 stops · History & heritage</Text>
+        <Text style={styles.routeTitle}>{t('suggestedItinerary')}</Text>
+        <Text style={styles.routeSub}>{t('itinerarySubtitle')}</Text>
       </View>
       <View style={styles.timeline}>
         {stops.map((stop, index) => (
@@ -27,20 +29,20 @@ export default function SuggestedRouteScreen() {
               {index < stops.length - 1 ? <View style={styles.connector} /> : null}
             </View>
             <View style={styles.stopContent}>
-              <Text style={styles.stopDay}>{stop.day}</Text>
-              <Text style={styles.stopTitle}>{stop.title}</Text>
-              <Text style={styles.stopDetail}>{stop.detail}</Text>
+              <Text style={styles.stopDay}>{t(stop.day)}</Text>
+              <Text style={styles.stopTitle}>{t(stop.title)}</Text>
+              <Text style={styles.stopDetail}>{t(stop.detail)}</Text>
             </View>
             <Text style={styles.stopMore}>›</Text>
           </View>
         ))}
       </View>
       <PrimaryButton
-        title="Navigate this route"
+        title={t('navigateRoute')}
         onPress={() => router.push('/(tabs)/map')}
         style={styles.button}
       />
-      <Text style={styles.helper}>You can adjust this itinerary any time.</Text>
+      <Text style={styles.helper}>{t('adjustItineraryAnytime')}</Text>
     </ScreenFrame>
   );
 }

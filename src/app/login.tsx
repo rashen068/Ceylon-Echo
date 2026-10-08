@@ -1,5 +1,10 @@
+import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { onboardingNavigation } from '@/navigation/app-navigation';
 import { getAuthErrorMessage } from '@/services/authService';
 
@@ -20,7 +26,18 @@ type SignInMode = 'user' | 'visitor';
 
 export default function LoginScreen() {
   const { height } = useWindowDimensions();
-  const { user, isFirebaseConfigured, authError, login, register } = useAuth();
+  const {
+    user,
+    role,
+    isRoleLoading,
+    roleError,
+    isFirebaseConfigured,
+    authError,
+    login,
+    register,
+    refreshUserRole,
+  } = useAuth();
+  const { hasSelectedLanguage, t } = useLanguage();
   const [mode, setMode] = useState<SignInMode>('user');
   const [isRegistering, setIsRegistering] = useState(false);
   const [name, setName] = useState('');
@@ -28,33 +45,61 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const emailInput = useRef<TextInput>(null);
+  const passwordInput = useRef<TextInput>(null);
   const completedSignIn = useRef(false);
+  const visibleMessage = message || roleError || authError;
 
   useEffect(() => {
-    if (user && !isBusy && !completedSignIn.current) {
+    if (user && !isBusy && !isRoleLoading && !roleError && !completedSignIn.current) {
+      if (!hasSelectedLanguage) {
+        onboardingNavigation.continueToLanguage();
+      } else if (role === 'admin') {
+        router.replace('/admin/attractions');
+      } else {
+        onboardingNavigation.finish();
+      }
+    }
+  }, [hasSelectedLanguage, isBusy, isRoleLoading, roleError, role, user]);
+
+  async function continueAfterAuthentication() {
+    const currentRole = await refreshUserRole();
+    completedSignIn.current = true;
+    if (!hasSelectedLanguage) {
+      onboardingNavigation.continueToLanguage();
+    } else if (currentRole === 'admin') {
+      router.replace('/admin/attractions');
+    } else {
       onboardingNavigation.finish();
     }
-  }, [isBusy, user]);
+  }
 
   async function handleSignIn() {
     if (mode === 'visitor') {
-      onboardingNavigation.continueToLanguage();
+      if (hasSelectedLanguage) {
+        onboardingNavigation.finish();
+      } else {
+        onboardingNavigation.continueToLanguage();
+      }
       return;
     }
 
     if (!username.trim() || !password || (isRegistering && !name.trim())) {
       setMessage(
         isRegistering
-          ? 'Enter your name, email and password to create an account.'
-          : 'Enter your email and password to continue.',
+          ? t('createAccountPrompt')
+          : t('emailPasswordPrompt'),
       );
       return;
     }
     if (!isFirebaseConfigured) {
-      setMessage('Firebase is not configured. Add the project settings to .env and restart Expo.');
+      setMessage(t('firebaseNotConfigured'));
       return;
     }
 
+    Keyboard.dismiss();
     setIsBusy(true);
     setMessage('');
     try {
@@ -63,8 +108,7 @@ export default function LoginScreen() {
       } else {
         await login(username, password);
       }
-      completedSignIn.current = true;
-      onboardingNavigation.continueToLanguage();
+      await continueAfterAuthentication();
     } catch (authError) {
       setMessage(getAuthErrorMessage(authError));
     } finally {
@@ -73,135 +117,244 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboardArea}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: Math.max(height * 0.07, 44) },
-          ]}
-          keyboardShouldPersistTaps="handled">
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            <Text
-              style={[
-                styles.title,
-                { marginBottom: Math.max(height * 0.07, 30) },
-              ]}>
-              Access Portal
-            </Text>
-
-            <View style={[styles.imageRow, { height: Math.min(height * 0.125, 120) }]}>
-              <View
-                accessible
-                accessibilityRole="image"
-                accessibilityLabel="Landscape photo asset required"
-                style={[styles.photoPlaceholder, styles.firstPhoto]}
-              />
-              <View
-                accessible
-                accessibilityRole="image"
-                accessibilityLabel="Sri Lankan heritage photo asset required"
-                style={[styles.photoPlaceholder, styles.secondPhoto]}
-              />
+            <View style={styles.brandHeader}>
+              <View style={styles.brand}>
+                <View style={styles.brandMark}>
+                  <Text style={styles.brandMarkText}>CE</Text>
+                </View>
+                <View>
+                  <Text style={styles.brandName}>CEYLON ECHO</Text>
+                  <Text style={styles.brandCaption}>{t('journeyCaption')}</Text>
+                </View>
+              </View>
+              <View style={styles.islandTag}>
+                <View style={styles.islandDot} />
+                <Text style={styles.islandTagText}>{t('sriLanka')}</Text>
+              </View>
             </View>
 
             <View
               style={[
-                styles.modeSelector,
-                { marginTop: Math.max(height * 0.018, 10) },
+                styles.hero,
+                { height: Math.min(Math.max(height * 0.24, 170), 236) },
               ]}>
-              <ModeButton
-                label="User Sign-in"
-                selected={mode === 'user'}
-                onPress={() => {
-                  setMode('user');
-                  setIsRegistering(false);
-                  setMessage('');
-                }}
-              />
-              <ModeButton
-                label="Visitor Sign-in"
-                selected={mode === 'visitor'}
-                onPress={() => {
-                  setMode('visitor');
-                  setIsRegistering(false);
-                  setMessage('');
-                }}
-              />
+              {!imageFailed ? (
+                <Image
+                  accessibilityLabel={t('sigiriyaSriLanka')}
+                  contentFit="cover"
+                  onError={() => setImageFailed(true)}
+                  source={require('../../assets/images/Language(8).jpg')}
+                  style={StyleSheet.absoluteFill}
+                  transition={450}
+                />
+              ) : (
+                <View style={styles.imageFallback}>
+                  <Text style={styles.fallbackMark}>CE</Text>
+                  <Text style={styles.fallbackCopy}>{t('islandAwaits')}</Text>
+                </View>
+              )}
+              <View pointerEvents="none" style={styles.heroShade} />
+              <View style={styles.heroCopy}>
+                <View style={styles.locationPill}>
+                  <Feather color="#f0d39f" name="map-pin" size={12} />
+                  <Text style={styles.locationText}>{t('sigiriyaSriLanka')}</Text>
+                </View>
+                <Text style={styles.heroTitle}>{t('islandCalling')}</Text>
+                <Text style={styles.heroSubtitle}>{t('findWonder')}</Text>
+              </View>
             </View>
 
-            <View style={[styles.form, { marginTop: Math.max(height * 0.05, 28) }]}>
-              {mode === 'visitor' ? (
-                <Text style={styles.visitorMessage}>
-                  Continue as a visitor to explore public attractions. Sign in to save places or
-                  manage your profile.
+            <View style={styles.formCard}>
+              <View style={styles.formHeading}>
+                <Text style={styles.eyebrow}>
+                  {mode === 'visitor' ? t('exploreAtYourPace') : t('welcomeToCeylonEcho')}
                 </Text>
+                <Text style={styles.title}>
+                  {mode === 'visitor'
+                    ? t('exploreAsVisitor')
+                    : isRegistering
+                      ? t('createAccount')
+                      : t('welcomeBack')}
+                </Text>
+                <Text style={styles.subtitle}>
+                  {mode === 'visitor'
+                    ? t('visitorDescription')
+                    : isRegistering
+                      ? t('createAccountDescription')
+                      : t('signInDescription')}
+                </Text>
+              </View>
+
+              <View style={styles.modeSelector} accessibilityRole="tablist">
+                <ModeButton
+                  disabled={isBusy}
+                  label={t('userSignIn')}
+                  selected={mode === 'user'}
+                  onPress={() => {
+                    setMode('user');
+                    setIsRegistering(false);
+                    setMessage('');
+                  }}
+                />
+                <ModeButton
+                  disabled={isBusy}
+                  label={t('visitor')}
+                  selected={mode === 'visitor'}
+                  onPress={() => {
+                    setMode('visitor');
+                    setIsRegistering(false);
+                    setMessage('');
+                  }}
+                />
+              </View>
+
+              {mode === 'visitor' ? (
+                <View style={styles.visitorNote}>
+                  <Feather color="#56715f" name="compass" size={18} />
+                  <Text style={styles.visitorMessage}>
+                    {t('visitorNote')}
+                  </Text>
+                </View>
               ) : (
-                <>
+                <View style={styles.fields}>
                   {isRegistering ? (
-                    <>
-                      <Text style={styles.label}>Name</Text>
-                      <TextInput
-                        accessibilityLabel="Name"
-                        autoCapitalize="words"
-                        onChangeText={(value) => {
-                          setName(value);
-                          setMessage('');
-                        }}
-                        placeholder="Enter your name"
-                        placeholderTextColor="#aaa69e"
-                        returnKeyType="next"
-                        style={styles.input}
-                        textContentType="name"
-                        value={name}
-                      />
-                    </>
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.label}>{t('name')}</Text>
+                      <View style={styles.inputShell}>
+                        <Feather
+                          accessible={false}
+                          color="#78847b"
+                          name="user"
+                          size={17}
+                        />
+                        <TextInput
+                          accessibilityLabel={t('name')}
+                          autoCapitalize="words"
+                          editable={!isBusy}
+                          onChangeText={(value) => {
+                            setName(value);
+                            setMessage('');
+                          }}
+                          onSubmitEditing={() => emailInput.current?.focus()}
+                          placeholder={t('yourName')}
+                          placeholderTextColor="#9a9e95"
+                          returnKeyType="next"
+                          style={styles.input}
+                          textContentType="name"
+                          value={name}
+                        />
+                      </View>
+                    </View>
                   ) : null}
 
-                  <Text style={[styles.label, isRegistering && styles.passwordLabel]}>Email</Text>
-                  <TextInput
-                    accessibilityLabel="Email"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                    onChangeText={(value) => {
-                      setUsername(value);
-                      setMessage('');
-                    }}
-                    placeholder="Enter your email"
-                    placeholderTextColor="#aaa69e"
-                    returnKeyType="next"
-                    style={styles.input}
-                    textContentType="emailAddress"
-                    value={username}
-                  />
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>{t('emailAddress')}</Text>
+                    <View style={styles.inputShell}>
+                      <Feather
+                        accessible={false}
+                        color="#78847b"
+                        name="mail"
+                        size={17}
+                      />
+                      <TextInput
+                        ref={emailInput}
+                        accessibilityLabel={t('emailAddress')}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        editable={!isBusy}
+                        keyboardType="email-address"
+                        onChangeText={(value) => {
+                          setUsername(value);
+                          setMessage('');
+                        }}
+                        onSubmitEditing={() => passwordInput.current?.focus()}
+                        placeholder="you@example.com"
+                        placeholderTextColor="#9a9e95"
+                        returnKeyType="next"
+                        style={styles.input}
+                        textContentType="emailAddress"
+                        value={username}
+                      />
+                    </View>
+                  </View>
 
-                  <Text style={[styles.label, styles.passwordLabel]}>Password</Text>
-                  <TextInput
-                    accessibilityLabel="Password"
-                    autoCapitalize="none"
-                    onChangeText={(value) => {
-                      setPassword(value);
-                      setMessage('');
-                    }}
-                    onSubmitEditing={() => void handleSignIn()}
-                    placeholder="••••••••"
-                    placeholderTextColor="#aaa69e"
-                    returnKeyType="go"
-                    secureTextEntry
-                    style={styles.input}
-                    textContentType={isRegistering ? 'newPassword' : 'password'}
-                    value={password}
-                  />
-                </>
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>{t('password')}</Text>
+                    <View style={styles.inputShell}>
+                      <Feather
+                        accessible={false}
+                        color="#78847b"
+                        name="lock"
+                        size={17}
+                      />
+                      <TextInput
+                        ref={passwordInput}
+                        accessibilityLabel={t('password')}
+                        autoCapitalize="none"
+                        editable={!isBusy}
+                        onChangeText={(value) => {
+                          setPassword(value);
+                          setMessage('');
+                        }}
+                        onSubmitEditing={() => void handleSignIn()}
+                        placeholder={t('enterPassword')}
+                        placeholderTextColor="#9a9e95"
+                        returnKeyType="go"
+                        secureTextEntry={!isPasswordVisible}
+                        style={styles.input}
+                        textContentType={isRegistering ? 'newPassword' : 'password'}
+                        value={password}
+                      />
+                      <Pressable
+                        accessibilityLabel={isPasswordVisible ? t('hidePassword') : t('showPassword')}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: isBusy }}
+                        disabled={isBusy}
+                        hitSlop={8}
+                        onPress={() => setIsPasswordVisible((visible) => !visible)}
+                        style={styles.visibilityButton}>
+                        <Feather
+                          color="#78847b"
+                          name={isPasswordVisible ? 'eye-off' : 'eye'}
+                          size={18}
+                        />
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
               )}
 
-              {message || authError ? (
-                <Text accessibilityLiveRegion="polite" style={styles.message}>
-                  {message ?? authError}
-                </Text>
+              {visibleMessage ? (
+                <View style={styles.messageBox}>
+                  <Feather color="#a14434" name="alert-circle" size={16} />
+                  <Text accessibilityLiveRegion="polite" style={styles.message}>
+                    {visibleMessage}
+                  </Text>
+                </View>
+              ) : null}
+              {user && roleError ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isRoleLoading}
+                  onPress={() =>
+                    void refreshUserRole().catch((retryError: unknown) => {
+                      setMessage(getAuthErrorMessage(retryError));
+                    })
+                  }
+                  style={({ pressed }) => [pressed && styles.pressed]}>
+                  <Text style={styles.switchModeAction}>
+                    {isRoleLoading ? t('loading') : t('languageRetry')}
+                  </Text>
+                </Pressable>
               ) : null}
 
               <Pressable
@@ -211,21 +364,31 @@ export default function LoginScreen() {
                 onPress={() => void handleSignIn()}
                 style={({ pressed }) => [
                   styles.submitButton,
-                  { marginTop: 'auto' },
                   pressed && !isBusy && styles.pressed,
                   isBusy && styles.disabled,
                 ]}>
+                {isBusy ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : null}
                 <Text style={styles.submitText}>
                   {mode === 'visitor'
-                    ? 'Continue as a Visitor'
+                    ? t('continueAsVisitor')
                     : isBusy
                       ? isRegistering
-                        ? 'Creating account…'
-                        : 'Signing in…'
+                        ? t('creatingAccount')
+                        : t('signingIn')
                       : isRegistering
-                        ? 'Create Account'
-                        : 'Sign in Securely'}
+                        ? t('createAccountAction')
+                        : t('signIn')}
                 </Text>
+                {!isBusy ? (
+                  <Feather
+                    color="#ffffff"
+                    name={mode === 'visitor' ? 'arrow-right' : 'arrow-up-right'}
+                    size={17}
+                    style={styles.submitIcon}
+                  />
+                ) : null}
               </Pressable>
 
               {mode === 'user' ? (
@@ -237,15 +400,19 @@ export default function LoginScreen() {
                     setMessage('');
                   }}
                   style={styles.switchMode}>
-                  <Text style={styles.switchModeText}>
-                    {isRegistering ? 'Already have an account? Sign in' : 'New here? Create account'}
+                  <Text style={styles.switchModePrompt}>
+                    {isRegistering ? t('haveAccount') : t('noAccount')}
+                  </Text>
+                  <Text style={styles.switchModeAction}>
+                    {isRegistering ? t('signIn') : t('createAccountAction')}
                   </Text>
                 </Pressable>
               ) : null}
+            </View>
 
-              <Text style={styles.footer}>
-                Your journey through Sri Lanka starts here.
-              </Text>
+            <View style={styles.footer}>
+              <Feather color="#a9956d" name="sun" size={13} />
+              <Text style={styles.footerText}>{t('journeyStartsHere')}</Text>
             </View>
           </View>
         </ScrollView>
@@ -257,21 +424,24 @@ export default function LoginScreen() {
 function ModeButton({
   label,
   selected,
+  disabled,
   onPress,
 }: {
   label: string;
   selected: boolean;
+  disabled: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.modeButton,
         selected && styles.modeButtonSelected,
-        pressed && styles.pressed,
+        pressed && !disabled && styles.pressed,
       ]}>
       <Text style={[styles.modeText, selected && styles.modeTextSelected]}>{label}</Text>
     </Pressable>
@@ -289,129 +459,328 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   content: {
     width: '100%',
-    flexGrow: 1,
-    maxWidth: 420,
+    maxWidth: 460,
+  },
+  brandHeader: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandMark: {
+    width: 39,
+    height: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#d5c7a8',
+    borderRadius: 13,
+    backgroundColor: '#285944',
+  },
+  brandMarkText: {
+    color: '#ffffff',
+    fontFamily: 'serif',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  brandName: {
+    color: '#294e3e',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.8,
+  },
+  brandCaption: {
+    marginTop: 3,
+    color: '#938d7e',
+    fontSize: 8,
+    fontWeight: '600',
+    letterSpacing: 1.15,
+  },
+  islandTag: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#e7e0d2',
+    borderRadius: 16,
+    backgroundColor: '#fcfbf7',
+  },
+  islandDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#b69b65',
+  },
+  islandTagText: {
+    color: '#777267',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+  },
+  hero: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 24,
+    backgroundColor: '#496552',
+  },
+  imageFallback: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#496552',
+  },
+  fallbackMark: {
+    color: '#f0d39f',
+    fontFamily: 'serif',
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  fallbackCopy: {
+    marginTop: 5,
+    color: '#ffffff',
+    fontSize: 12,
+  },
+  heroShade: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(13, 31, 23, 0.28)',
+  },
+  heroCopy: {
+    position: 'absolute',
+    right: 20,
+    bottom: 18,
+    left: 20,
+    alignItems: 'flex-start',
+  },
+  locationPill: {
+    minHeight: 27,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.36)',
+    borderRadius: 14,
+    backgroundColor: 'rgba(20, 39, 29, 0.45)',
+  },
+  locationText: {
+    color: '#ffffff',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+  },
+  heroTitle: {
+    marginTop: 10,
+    color: '#ffffff',
+    fontFamily: 'serif',
+    fontSize: 25,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+  heroSubtitle: {
+    marginTop: 3,
+    color: 'rgba(255,255,255,0.87)',
+    fontSize: 11,
+  },
+  formCard: {
+    marginTop: 17,
+    paddingHorizontal: 20,
+    paddingTop: 21,
+    paddingBottom: 13,
+    borderWidth: 1,
+    borderColor: '#ece8df',
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    boxShadow: '0px 7px 18px rgba(44, 64, 51, 0.07)',
+  },
+  formHeading: {
+    marginBottom: 17,
+  },
+  eyebrow: {
+    color: '#a28d62',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 1.55,
   },
   title: {
-    color: '#294e3e',
+    marginTop: 6,
+    color: '#26382f',
     fontFamily: 'serif',
-    fontSize: 16,
+    fontSize: 25,
     fontWeight: '600',
-    textAlign: 'center',
+    lineHeight: 31,
   },
-  imageRow: {
-    flexDirection: 'row',
-    gap: 6,
-    overflow: 'hidden',
-    borderRadius: 5,
-  },
-  photoPlaceholder: {
-    flex: 1,
-    overflow: 'hidden',
-    borderRadius: 3,
-  },
-  firstPhoto: {
-    backgroundColor: '#e7e3d9',
-  },
-  secondPhoto: {
-    backgroundColor: '#e2e5df',
+  subtitle: {
+    marginTop: 5,
+    color: '#777d75',
+    fontSize: 12,
+    lineHeight: 18,
   },
   modeSelector: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
+    marginBottom: 17,
     padding: 4,
-    borderRadius: 10,
-    backgroundColor: '#eee9dc',
+    borderRadius: 13,
+    backgroundColor: '#f2f0e9',
   },
   modeButton: {
-    minHeight: 38,
+    minHeight: 40,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 8,
   },
   modeButtonSelected: {
-    backgroundColor: '#294e3e',
+    backgroundColor: '#285944',
+    boxShadow: '0px 2px 5px rgba(23, 61, 44, 0.15)',
   },
   modeText: {
     color: '#777267',
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
   modeTextSelected: {
     color: '#ffffff',
   },
-  form: {
-    flexGrow: 1,
+  fields: {
+    gap: 13,
+  },
+  fieldGroup: {
+    gap: 6,
   },
   label: {
-    marginBottom: 4,
-    color: '#45433d',
+    color: '#414b43',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  passwordLabel: {
-    marginTop: 10,
+  inputShell: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#e6e5dd',
+    borderRadius: 13,
+    backgroundColor: '#fdfdfa',
   },
   input: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderColor: '#e4e0d8',
-    borderRadius: 7,
-    paddingHorizontal: 10,
-    color: '#383731',
-    backgroundColor: '#ffffff',
-    fontSize: 12,
+    minHeight: 50,
+    flex: 1,
+    paddingVertical: 0,
+    color: '#26382f',
+    fontSize: 13,
   },
-  message: {
-    marginTop: 8,
-    color: '#9b4d32',
-    fontSize: 10,
-    lineHeight: 15,
+  visibilityButton: {
+    width: 36,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  visitorNote: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+    marginBottom: 17,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e6ebe4',
+    borderRadius: 13,
+    backgroundColor: '#f4f7f2',
   },
   visitorMessage: {
-    marginTop: 4,
-    color: '#777267',
+    flex: 1,
+    color: '#626f65',
     fontSize: 11,
     lineHeight: 17,
   },
+  messageBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 13,
+    padding: 11,
+    borderWidth: 1,
+    borderColor: '#f0d7cf',
+    borderRadius: 11,
+    backgroundColor: '#fff7f4',
+  },
+  message: {
+    flex: 1,
+    color: '#9b4434',
+    fontSize: 11,
+    lineHeight: 16,
+  },
   submitButton: {
-    minHeight: 42,
+    minHeight: 53,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#b75f3e',
+    gap: 9,
+    marginTop: 17,
+    borderRadius: 14,
+    backgroundColor: '#285944',
+    boxShadow: '0px 4px 8px rgba(35, 75, 55, 0.18)',
+  },
+  submitText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  submitIcon: {
+    position: 'absolute',
+    right: 17,
   },
   disabled: {
-    opacity: 0.65,
+    opacity: 0.76,
   },
   pressed: {
     opacity: 0.82,
   },
-  submitText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   switchMode: {
+    minHeight: 43,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 9,
+    justifyContent: 'center',
+    gap: 5,
   },
-  switchModeText: {
+  switchModePrompt: {
+    color: '#777d75',
+    fontSize: 11,
+  },
+  switchModeAction: {
     color: '#285944',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
   },
   footer: {
-    marginTop: 7,
-    color: '#969187',
-    fontSize: 8,
-    textAlign: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    marginTop: 16,
+  },
+  footerText: {
+    color: '#928d81',
+    fontSize: 10,
+    letterSpacing: 0.1,
   },
 });

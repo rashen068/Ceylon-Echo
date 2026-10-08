@@ -10,10 +10,18 @@ import {
   TravelColors,
 } from '@/components/travel-ui';
 import { useAttractions } from '@/hooks/use-attractions';
+import { useLanguage } from '@/context/LanguageContext';
 
-const filters = ['All', 'Heritage', 'Nature', 'Beaches'];
+const filters = ['All', 'Heritage', 'Nature', 'Beaches'] as const;
+const filterTranslationKeys = {
+  All: 'all',
+  Heritage: 'heritage',
+  Nature: 'nature',
+  Beaches: 'beaches',
+} as const;
 
 export default function ExploreScreen() {
+  const { t } = useLanguage();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const { attractions, isLoading, error } = useAttractions();
@@ -30,22 +38,22 @@ export default function ExploreScreen() {
 
   return (
     <ScreenFrame
-      title="Explore"
-      subtitle="Find a place that feels like yours."
+      title={t('explore')}
+      subtitle={t('exploreSubtitle')}
       onProfile={() => router.push('/(tabs)/profile')}>
       <View style={styles.search}>
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
-          accessibilityLabel="Search attractions"
+          accessibilityLabel={t('searchAttractions')}
           onChangeText={setSearch}
-          placeholder="Search attractions..."
+          placeholder={t('searchAttractionsPlaceholder')}
           placeholderTextColor="#8b9189"
           style={styles.searchInput}
           value={search}
         />
       </View>
 
-      <SectionHeading title="Explore the map" />
+      <SectionHeading title={t('exploreMapHeading')} />
       <Pressable
         accessibilityRole="button"
         onPress={() => router.push('/(tabs)/map')}
@@ -61,11 +69,15 @@ export default function ExploreScreen() {
           <Text style={styles.pinText}>•</Text>
         </View>
         <View style={styles.mapAction}>
-          <Text style={styles.mapActionText}>Open interactive map  →</Text>
+          <Text style={styles.mapActionText}>{t('openInteractiveMap')}</Text>
         </View>
       </Pressable>
 
-      <SectionHeading title="Nearby attractions" action="See all" onPress={() => router.push('/(tabs)/nearby')} />
+      <SectionHeading
+        title={t('nearbyAttractions')}
+        action={t('seeAll')}
+        onPress={() => router.push('/(tabs)/nearby')}
+      />
       <View style={styles.filterRow}>
         {filters.map((item) => {
           const active = filter === item;
@@ -76,15 +88,17 @@ export default function ExploreScreen() {
               accessibilityState={{ selected: active }}
               onPress={() => setFilter(item)}
               style={[styles.filter, active && styles.filterActive]}>
-              <Text style={[styles.filterText, active && styles.filterTextActive]}>{item}</Text>
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {t(filterTranslationKeys[item])}
+              </Text>
             </Pressable>
           );
         })}
       </View>
-      {isLoading ? <DataMessage isLoading message="Loading attractions…" /> : null}
+      {isLoading ? <DataMessage isLoading message={t('loadingAttractions')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && filteredAttractions.length === 0 ? (
-        <DataMessage message="No attractions match these filters." />
+        <DataMessage message={t('noMatchingFilters')} />
       ) : null}
       <View style={styles.cardList}>
         {filteredAttractions.map((item, index) => (

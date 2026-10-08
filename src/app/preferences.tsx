@@ -5,13 +5,14 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { AuthGate } from '@/components/auth-gate';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile, updateUserProfile } from '@/services/userService';
+import { useLanguage } from '@/context/LanguageContext';
 
 const interests = [
-  { id: 'heritage', title: 'Ancient heritage', detail: 'Temples, ruins and stories' },
-  { id: 'nature', title: 'Nature & wildlife', detail: 'Wild places and local wildlife' },
-  { id: 'food', title: 'Food & culture', detail: 'Local flavours and traditions' },
-  { id: 'coast', title: 'Coast & beaches', detail: 'Sea views and island escapes' },
-];
+  { id: 'heritage', title: 'ancientHeritage', detail: 'heritageDescription' },
+  { id: 'nature', title: 'natureWildlife', detail: 'natureDescription' },
+  { id: 'food', title: 'foodCulture', detail: 'foodDescription' },
+  { id: 'coast', title: 'coastBeaches', detail: 'coastDescription' },
+] as const;
 
 export default function PreferencesScreen() {
   return (
@@ -23,6 +24,7 @@ export default function PreferencesScreen() {
 
 function AuthenticatedPreferencesScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<string[]>(['heritage', 'nature']);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,7 +46,7 @@ function AuthenticatedPreferencesScreen() {
       })
       .catch((loadError: unknown) => {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load preferences.');
+          setError(loadError instanceof Error ? loadError.message : t('preferencesLoadError'));
         }
       })
       .finally(() => {
@@ -56,7 +58,7 @@ function AuthenticatedPreferencesScreen() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [t, user]);
 
   function toggleInterest(id: string) {
     setError(null);
@@ -75,7 +77,7 @@ function AuthenticatedPreferencesScreen() {
       await updateUserProfile(user.uid, { interests: selected });
       router.replace('/(tabs)/home');
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save preferences.');
+      setError(saveError instanceof Error ? saveError.message : t('preferencesSaveError'));
     } finally {
       setIsSaving(false);
     }
@@ -88,13 +90,13 @@ function AuthenticatedPreferencesScreen() {
           <View style={styles.mark}>
             <Text style={styles.markText}>CE</Text>
           </View>
-          <Text style={styles.step}>A LITTLE ABOUT YOU · 2 OF 2</Text>
+          <Text style={styles.step}>{t('preferencesStep')}</Text>
         </View>
-        <Text style={styles.title}>What do you love to explore?</Text>
-        <Text style={styles.subtitle}>Pick a few interests to personalize your journey.</Text>
+        <Text style={styles.title}>{t('preferencesTitle')}</Text>
+        <Text style={styles.subtitle}>{t('preferencesDescription')}</Text>
 
         {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
-        {isLoading ? <Text style={styles.loading}>Loading your preferences…</Text> : null}
+        {isLoading ? <Text style={styles.loading}>{t('loadingPreferences')}</Text> : null}
         <View style={styles.options}>
           {interests.map((interest) => {
             const active = selected.includes(interest.id);
@@ -111,11 +113,11 @@ function AuthenticatedPreferencesScreen() {
                   pressed && styles.pressed,
                 ]}>
                 <View style={styles.optionIcon}>
-                  <Text style={styles.optionIconText}>{interest.title.slice(0, 1)}</Text>
+                  <Text style={styles.optionIconText}>{t(interest.title).slice(0, 1)}</Text>
                 </View>
                 <View style={styles.optionCopy}>
-                  <Text style={styles.optionTitle}>{interest.title}</Text>
-                  <Text style={styles.optionDetail}>{interest.detail}</Text>
+                  <Text style={styles.optionTitle}>{t(interest.title)}</Text>
+                  <Text style={styles.optionDetail}>{t(interest.detail)}</Text>
                 </View>
                 <View style={[styles.checkbox, active && styles.checkboxActive]}>
                   {active ? <Text style={styles.check}>✓</Text> : null}
@@ -127,7 +129,7 @@ function AuthenticatedPreferencesScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerNote}>
-            You can always change your preferences later.
+            {t('preferencesChangeAnytime')}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -135,11 +137,11 @@ function AuthenticatedPreferencesScreen() {
             onPress={() => void savePreferences()}
             style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]}>
             <Text style={styles.continueText}>
-              {isSaving ? 'Saving…' : 'Save & Explore Sri Lanka'}
+              {isSaving ? t('saving') : t('saveExploreSriLanka')}
             </Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.replace('/(tabs)/home')}>
-            <Text style={styles.skip}>Skip for now</Text>
+            <Text style={styles.skip}>{t('skipForNow')}</Text>
           </Pressable>
         </View>
       </ScrollView>

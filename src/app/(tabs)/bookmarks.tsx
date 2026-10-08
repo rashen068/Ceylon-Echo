@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getAttractionsByIds } from '@/services/attractionService';
 import type { Attraction } from '@/services/attractionService';
 import { getSavedAttractionIds, removeSavedAttraction } from '@/services/userService';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function BookmarksScreen() {
   return (
@@ -20,6 +21,7 @@ export default function BookmarksScreen() {
 
 function SavedAttractionsScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ function SavedAttractionsScreen() {
         }
       } catch (loadError) {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load saved places.');
+          setError(loadError instanceof Error ? loadError.message : t('loadingSavedPlaces'));
         }
       } finally {
         if (active) {
@@ -58,7 +60,7 @@ function SavedAttractionsScreen() {
     return () => {
       active = false;
     };
-  }, [userId]);
+  }, [t, userId]);
 
   async function removeAttraction(attractionId: string) {
     if (!user) {
@@ -70,21 +72,21 @@ function SavedAttractionsScreen() {
       await removeSavedAttraction(user.uid, attractionId);
       setAttractions((current) => current.filter((item) => item.id !== attractionId));
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Could not remove saved place.');
+      setError(removeError instanceof Error ? removeError.message : t('removeSavedPlaceError'));
     } finally {
       setRemovingId(null);
     }
   }
 
   return (
-    <ScreenFrame title="Saved Attractions" subtitle="The places you want to remember.">
-      {isLoading ? <DataMessage isLoading message="Loading saved places…" /> : null}
+    <ScreenFrame title={t('savedAttractions')} subtitle={t('savedAttractionsSubtitle')}>
+      {isLoading ? <DataMessage isLoading message={t('loadingSavedPlaces')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && attractions.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyMark}>♡</Text>
-          <Text style={styles.emptyTitle}>Your saved places will be here</Text>
-          <Text style={styles.emptyCopy}>Save a destination when you find one you love.</Text>
+          <Text style={styles.emptyTitle}>{t('savedPlacesTitle')}</Text>
+          <Text style={styles.emptyCopy}>{t('savedPlacesDescription')}</Text>
         </View>
       ) : null}
       {attractions.map((item, index) => (
@@ -101,7 +103,7 @@ function SavedAttractionsScreen() {
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${item.name} from saved attractions`}
+            accessibilityLabel={t('removeSavedAttraction', { place: item.name })}
             disabled={removingId === item.id}
             onPress={() => void removeAttraction(item.id)}
             style={styles.bookmarkButton}>

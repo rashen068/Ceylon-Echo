@@ -5,9 +5,11 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { DataMessage } from '@/components/data-message';
 import { LandscapeArt, ScreenFrame, TravelColors } from '@/components/travel-ui';
+import { useLanguage } from '@/context/LanguageContext';
 import { useAttractions } from '@/hooks/use-attractions';
 
 export default function AudioGuideScreen() {
+  const { t } = useLanguage();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { attractions, isLoading, error } = useAttractions();
   const attraction = id
@@ -25,10 +27,10 @@ export default function AudioGuideScreen() {
     setMessage(null);
     try {
       await Linking.openURL(attraction.audioGuide.url);
-      setMessage('The audio guide URL was opened. Playback depends on your browser or audio app.');
+      setMessage(t('audioUrlOpened'));
     } catch (openError) {
       setMessage(
-        openError instanceof Error ? openError.message : 'Could not open this audio guide.',
+        openError instanceof Error ? openError.message : t('noGuideForAttraction'),
       );
     } finally {
       setIsOpening(false);
@@ -37,17 +39,17 @@ export default function AudioGuideScreen() {
 
   return (
     <ScreenFrame
-      title="Audio Guide"
-      subtitle={attraction?.name ?? 'Listen to a story from Sri Lanka'}>
+      title={t('audioGuide')}
+      subtitle={attraction?.name ?? t('audioGuideDescription')}>
       <LandscapeArt
         tone="forest"
-        label={attraction ? `${attraction.name} audio guide` : 'Audio guide illustration'}
+        label={attraction ? `${attraction.name} ${t('audioGuide')}` : t('audioGuide')}
         style={styles.cover}
       />
-      {isLoading ? <DataMessage isLoading message="Loading audio guides…" /> : null}
+      {isLoading ? <DataMessage isLoading message={t('loadingAudioGuides')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && !attraction?.audioGuide ? (
-        <DataMessage message="No audio guide has been uploaded for this attraction yet." />
+        <DataMessage message={t('noGuideForAttraction')} />
       ) : null}
       {attraction?.audioGuide ? (
         <>
@@ -65,7 +67,7 @@ export default function AudioGuideScreen() {
             <Text style={styles.playIcon}>{isOpening ? '…' : '▶'}</Text>
           </Pressable>
           <Text style={styles.status}>
-            {message ?? (isOpening ? 'Opening audio guide…' : 'Ready when you are')}
+            {message ?? (isOpening ? t('openingAudioGuide') : t('readyWhenYouAre'))}
           </Text>
         </>
       ) : null}

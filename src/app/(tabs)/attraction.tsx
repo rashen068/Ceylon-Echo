@@ -13,10 +13,12 @@ import {
   TravelColors,
 } from '@/components/travel-ui';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useAttraction, useAttractions } from '@/hooks/use-attractions';
 import { getSavedAttractionIds, removeSavedAttraction, saveAttraction } from '@/services/userService';
 
 export default function AttractionScreen() {
+  const { t } = useLanguage();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user } = useAuth();
   const { attractions, isLoading: isLoadingAttractions, error: attractionsError } = useAttractions();
@@ -93,24 +95,24 @@ export default function AttractionScreen() {
 
   if (isLoadingAttractions && !selectedId) {
     return (
-      <ScreenFrame title="Attraction details">
-        <DataMessage isLoading message="Loading attractions…" />
+      <ScreenFrame title={t('attractionDetails')}>
+        <DataMessage isLoading message={t('loadingAttractions')} />
       </ScreenFrame>
     );
   }
 
   if (isLoading) {
     return (
-      <ScreenFrame title="Attraction details">
-        <DataMessage isLoading message="Loading attraction…" />
+      <ScreenFrame title={t('attractionDetails')}>
+        <DataMessage isLoading message={t('loadingAttraction')} />
       </ScreenFrame>
     );
   }
 
   if (!attraction) {
     return (
-      <ScreenFrame title="Attraction details">
-        <DataMessage isError message={error ?? attractionsError ?? 'This attraction could not be found.'} />
+      <ScreenFrame title={t('attractionDetails')}>
+        <DataMessage isError message={error ?? attractionsError ?? t('attractionNotFound')} />
       </ScreenFrame>
     );
   }
@@ -142,7 +144,7 @@ export default function AttractionScreen() {
       <View style={styles.buttonRow}>
         {attraction.audioGuide ? (
           <PrimaryButton
-            title="Play Audio Guide"
+            title={t('playAudioGuide')}
             onPress={() =>
               router.push({
                 pathname: '/(tabs)/audio-guide',
@@ -155,7 +157,7 @@ export default function AttractionScreen() {
           <View style={styles.flexButton} />
         )}
         <SoftButton
-          title={isSaving ? 'Saving…' : saved ? 'Saved ✓' : '♡ Save'}
+          title={isSaving ? t('saving') : saved ? t('saved') : t('savePlace')}
           onPress={() => void toggleSaved()}
           style={styles.saveButton}
         />
@@ -163,24 +165,24 @@ export default function AttractionScreen() {
       {saveError ? <DataMessage isError message={saveError} /> : null}
       <View style={styles.buttonRow}>
         <SoftButton
-          title="Open map"
+          title={t('openMap')}
           onPress={() => router.push('/(tabs)/map')}
           style={styles.flexButton}
         />
         {attraction.audioGuide ? (
           <SoftButton
-            title="Download"
+            title={t('download')}
             onPress={() => router.push('/(tabs)/downloads')}
             style={styles.flexButton}
           />
         ) : null}
       </View>
-      <Text style={styles.sectionTitle}>About this place</Text>
-      <Text style={styles.description}>{attraction.description || 'No description is available yet.'}</Text>
+      <Text style={styles.sectionTitle}>{t('aboutThisPlace')}</Text>
+      <Text style={styles.description}>{attraction.description || t('noDescription')}</Text>
       <DetailRow
         icon="⌖"
         title={attraction.location}
-        subtitle="Open directions in the map"
+        subtitle={t('openDirections')}
         onPress={() => router.push('/(tabs)/map')}
       />
     </ScreenFrame>

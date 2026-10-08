@@ -23,6 +23,7 @@ const colors = {
   muted: '#7C838A',
   line: '#EAE5DD',
   rust: '#B85E3B',
+  rustLight: '#F7EDE7',
   green: '#315443',
   greenLight: '#EAF1EC',
 };
@@ -171,6 +172,15 @@ export default function HomeScreen() {
           <Feather color={colors.green} name="download" size={16} />
           <Text style={styles.downloadText}>View offline audio guides</Text>
           <Feather color={colors.green} name="chevron-right" size={16} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/admin')}
+          style={({ pressed }) => [styles.adminLink, pressed && styles.pressed]}>
+          <Feather color={colors.rust} name="lock" size={15} />
+          <Text style={styles.adminLinkText}>Admin portal</Text>
+          <Feather color={colors.rust} name="chevron-right" size={16} />
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -342,6 +352,22 @@ const styles = StyleSheet.create({
   downloadText: {
     flex: 1,
     color: colors.green,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  adminLink: {
+    minHeight: 44,
+    marginTop: 18,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 10,
+    backgroundColor: colors.rustLight,
+  },
+  adminLinkText: {
+    color: colors.rust,
     fontSize: 12,
     fontWeight: '700',
   },

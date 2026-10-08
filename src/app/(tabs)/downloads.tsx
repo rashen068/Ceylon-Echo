@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { router, useFocusEffect } from 'expo-router';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,13 +14,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { OfflineGuide } from '@/features/tourist/offline-guides';
 import {
   downloadOfflineGuide,
   formatFileSize,
   getOfflineGuides,
   removeOfflineGuide,
 } from '@/features/tourist/offline-guides';
-import type { OfflineGuide } from '@/features/tourist/offline-guides';
 import { requireFirestore } from '@/lib/firebase';
 
 type Guide = {

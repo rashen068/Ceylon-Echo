@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e3ece6',
   },
   mapGrid: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.4,
     backgroundColor: '#d9e4dc',
   },

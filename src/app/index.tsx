@@ -23,10 +23,10 @@ export default function WelcomePage() {
   const [roleRetryError, setRoleRetryError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!languageReady) return;
+    if (!languageReady || isLoading) return;
     if (!hasSelectedLanguage) {
       router.replace('/language');
-    } else if (user && !isLoading && !isRoleLoading && !roleError) {
+    } else if (user && !isRoleLoading && !roleError) {
       router.replace(role === 'admin' ? '/admin/attractions' : '/(tabs)/home');
     }
   }, [hasSelectedLanguage, isLoading, isRoleLoading, languageReady, roleError, role, user]);
@@ -68,12 +68,7 @@ export default function WelcomePage() {
     );
   }
 
-  if (
-    !hasSelectedLanguage ||
-    isLoading ||
-    isRoleLoading ||
-    (user && !isLoading)
-  ) return null;
+  if (!hasSelectedLanguage || isLoading || isRoleLoading || user) return null;
 
   return (
     <View style={styles.screen}>

@@ -1,4 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -28,6 +29,10 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="downloads">
+        <NativeTabs.Trigger.Label>Downloads</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.VectorIcon family={Feather} name="download" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

@@ -31,7 +31,10 @@ export default function ExploreScreen() {
         const matchesSearch = `${item.name} ${item.location} ${item.category}`
           .toLowerCase()
           .includes(search.trim().toLowerCase());
-        return matchesSearch && (filter === 'All' || item.category.toLowerCase().includes(filter.toLowerCase()));
+        return (
+          matchesSearch &&
+          (filter === 'All' || item.category.toLowerCase().includes(filter.toLowerCase()))
+        );
       }),
     [attractions, filter, search],
   );
@@ -41,6 +44,7 @@ export default function ExploreScreen() {
       title={t('explore')}
       subtitle={t('exploreSubtitle')}
       onProfile={() => router.push('/(tabs)/profile')}>
+      <Text style={styles.eyebrow}>{t('homeEyebrow')}</Text>
       <View style={styles.search}>
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
@@ -48,6 +52,7 @@ export default function ExploreScreen() {
           onChangeText={setSearch}
           placeholder={t('searchAttractionsPlaceholder')}
           placeholderTextColor="#8b9189"
+          returnKeyType="search"
           style={styles.searchInput}
           value={search}
         />
@@ -56,6 +61,7 @@ export default function ExploreScreen() {
       <SectionHeading title={t('exploreMapHeading')} />
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={t('openInteractiveMap')}
         onPress={() => router.push('/(tabs)/map')}
         style={styles.mapCard}>
         <View style={styles.mapGrid} />
@@ -98,7 +104,11 @@ export default function ExploreScreen() {
       {isLoading ? <DataMessage isLoading message={t('loadingAttractions')} /> : null}
       {error ? <DataMessage isError message={error} /> : null}
       {!isLoading && !error && filteredAttractions.length === 0 ? (
-        <DataMessage message={t('noMatchingFilters')} />
+        <DataMessage
+          message={
+            search || filter !== 'All' ? t('noMatchingFilters') : t('noAttractionsYet')
+          }
+        />
       ) : null}
       <View style={styles.cardList}>
         {filteredAttractions.map((item, index) => (
@@ -120,6 +130,13 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
+  eyebrow: {
+    marginTop: 3,
+    color: TravelColors.orange,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
   search: {
     minHeight: 40,
     flexDirection: 'row',

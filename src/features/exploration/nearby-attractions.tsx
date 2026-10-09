@@ -131,3 +131,19 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#EFF6FF', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
   saveText: { color: '#2563EB', fontWeight: '600', fontSize: 12 },
 });
+
+import attractions from '@/app/admin/attractions';
+import { AttractionCard } from '@/components/ui/AttractionCard';
+
+<FlatList
+  data={attractions}
+  keyExtractor={(item) => item.id}
+  renderItem={({ item }) => (
+    <AttractionCard
+      name={item.name}
+      category={item.category}
+      distanceMeters={item.distance}
+      onSave={() => bookmarkItem(item)}
+    />
+  )}
+/>

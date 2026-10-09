@@ -105,6 +105,3 @@ const styles = StyleSheet.create({
   filterTextActive: { color: '#ffffff' },
 });
 
-// 
-import NearbyAttractions from '@/features/exploration/nearby-attractions';
-export default NearbyAttractions;

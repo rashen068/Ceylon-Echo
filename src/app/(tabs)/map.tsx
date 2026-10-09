@@ -157,3 +157,7 @@ const styles = StyleSheet.create({
   chevron: { color: TravelColors.green, fontSize: 18 },
   button: { marginTop: 15 },
 });
+
+// 
+import InteractiveMap from '@/features/exploration/interactive-map';
+export default InteractiveMap;

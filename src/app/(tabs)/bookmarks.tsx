@@ -6,10 +6,10 @@ import { AuthGate } from '@/components/auth-gate';
 import { DataMessage } from '@/components/data-message';
 import { AttractionCard, ScreenFrame, TravelColors } from '@/components/travel-ui';
 import { useAuth } from '@/context/AuthContext';
-import { getAttractionsByIds } from '@/services/attractionService';
-import type { Attraction } from '@/services/attractionService';
-import { getSavedAttractionIds, removeSavedAttraction } from '@/services/userService';
 import { useLanguage } from '@/context/LanguageContext';
+import type { Attraction } from '@/services/attractionService';
+import { getAttractionsByIds } from '@/services/attractionService';
+import { getSavedAttractionIds, removeSavedAttraction } from '@/services/userService';
 
 export default function BookmarksScreen() {
   return (
@@ -141,3 +141,7 @@ const styles = StyleSheet.create({
   emptyTitle: { marginTop: 12, color: TravelColors.ink, fontSize: 13, fontWeight: '700' },
   emptyCopy: { marginTop: 5, color: TravelColors.muted, fontSize: 10, textAlign: 'center' },
 });
+
+//
+import SavedBookmarks from '@/features/exploration/saved-bookmarks';
+export default SavedBookmarks;

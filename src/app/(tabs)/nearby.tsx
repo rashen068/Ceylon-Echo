@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { DataMessage } from '@/components/data-message';
 import { AttractionCard, ScreenFrame, TravelColors } from '@/components/travel-ui';
-import { useAttractions } from '@/hooks/use-attractions';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAttractions } from '@/hooks/use-attractions';
 
 const filters = ['All', 'Heritage', 'Nature', 'Temple'] as const;
 const filterTranslationKeys = {
@@ -104,3 +104,7 @@ const styles = StyleSheet.create({
   filterText: { color: TravelColors.muted, fontSize: 8, fontWeight: '600' },
   filterTextActive: { color: '#ffffff' },
 });
+
+// 
+import NearbyAttractions from '@/features/exploration/nearby-attractions';
+export default NearbyAttractions;

@@ -1,10 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApp, getApps, initializeApp } from 'firebase/app';
 import type { FirebaseOptions } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
+import { getAuth, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+
+
+
+
 
 import { createAuthPersistence } from '@/lib/firebase-auth-persistence';
 
@@ -86,3 +90,17 @@ export function requireStorage() {
   }
   return storage;
 }
+
+//
+const firebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
+  authDomain: "ceylon-echo.firebaseapp.com",
+  projectId: "ceylon-echo",
+  storageBucket: "ceylon-echo.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const db = getFirestore(app);
+export const storage = getStorage(app);
